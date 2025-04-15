@@ -689,11 +689,13 @@ function Generate-Report {
         $status = $script:results.SystemRequirements.RequiredModules[$module]
         $moduleText = 'Not Installed'
         $moduleColor = 'Red'
+        $htmlClass = 'failure'
         if ($status) { 
             $moduleText = 'Installed'
             $moduleColor = 'Green'
+            $htmlClass = 'success'
         }
-        $moduleRowsHtml += "<tr><td>Module: $module</td><td class='$cssClass'>$statusText</td></tr>"
+        $moduleRowsHtml += "<tr><td>Module: $module</td><td class='$htmlClass'>$moduleText</td></tr>"
     }
     
     $sysReqFooterHtml = "</table>"
@@ -778,7 +780,7 @@ function Generate-Report {
     
     $azureApiClass = "failure"
     $azureApiText = "Failed"
-    if ($script:results.Azure.ApiAccessible) {
+    if ($script:results.Azure.ApiAccessible) { 
         $azureApiClass = "success"
         $azureApiText = "Success"
     }
@@ -905,7 +907,7 @@ foreach ($module in $script:results.SystemRequirements.RequiredModules.Keys) {
         $moduleText = 'Installed'
         $moduleColor = 'Green'
     }
-    Write-Host "  Module ${module}: ${moduleText}" -ForegroundColor $moduleColor
+    Write-Host "  Module $module`: $moduleText" -ForegroundColor $moduleColor
 }
 
 Write-Host ""
@@ -958,7 +960,7 @@ Write-Host "  Basic Connectivity: $azureConnectivityText" -ForegroundColor $azur
 # Azure API Accessibility
 $azureApiText = 'Failed'
 $azureApiColor = 'Red'
-if ($results.Azure.ApiAccessible) { 
+if ($script:results.Azure.ApiAccessible) { 
     $azureApiText = 'Success'
     $azureApiColor = 'Green'
 }
@@ -968,7 +970,7 @@ Write-Host "  API Accessible: $azureApiText" -ForegroundColor $azureApiColor
 $azureAuthText = 'Not Tested'
 $azureAuthColor = 'Yellow'
 if ($TestAuth) {
-    if ($results.Azure.AuthSuccessful) {
+    if ($script:results.Azure.AuthSuccessful) {
         $azureAuthText = 'Success'
         $azureAuthColor = 'Green'
     } else {
@@ -979,9 +981,9 @@ if ($TestAuth) {
 Write-Host "  Authentication: $azureAuthText" -ForegroundColor $azureAuthColor
 
 Write-Host ""
-if ($results.Recommendations.Count -gt 0) {
+if ($script:results.Recommendations.Count -gt 0) {
     Write-Host "Recommendations:" -ForegroundColor Yellow
-    foreach ($recommendation in $results.Recommendations) {
+    foreach ($recommendation in $script:results.Recommendations) {
         Write-Host "  - $recommendation" -ForegroundColor Yellow
     }
 } else {
