@@ -1,0 +1,325 @@
+{
+  "version": "1.0",
+  "description": "Definition of component relationships for the migration solution",
+  "lastUpdated": "2023-11-15",
+  "components": [
+    {
+      "name": "RollbackMechanism",
+      "description": "Handles system restore points and rollback of failed migrations",
+      "criticalLevel": "High",
+      "dependencies": ["LoggingModule"],
+      "features": [
+        "System restore point creation",
+        "Registry backup and restore",
+        "Configuration rollback",
+        "Transaction management"
+      ]
+    },
+    {
+      "name": "MigrationVerification",
+      "description": "Validates successful migration and system health",
+      "criticalLevel": "High",
+      "dependencies": ["LoggingModule"],
+      "features": [
+        "Device enrollment verification",
+        "Configuration compliance checks",
+        "Application installation validation",
+        "Health check reporting"
+      ]
+    },
+    {
+      "name": "UserCommunication",
+      "description": "Manages user notifications and communication",
+      "criticalLevel": "Medium",
+      "dependencies": ["LoggingModule"],
+      "features": [
+        "Email notifications",
+        "Status updates",
+        "User messaging",
+        "Notification logging"
+      ]
+    },
+    {
+      "name": "ProfileTransfer",
+      "description": "Handles user profile migration between systems",
+      "criticalLevel": "High",
+      "dependencies": ["LoggingModule", "PrivilegeManagement"],
+      "features": [
+        "User data backup",
+        "Profile migration",
+        "Permissions transfer",
+        "Profile validation"
+      ]
+    },
+    {
+      "name": "AutopilotIntegration",
+      "description": "Integrates with Microsoft Autopilot for device enrollment",
+      "criticalLevel": "High",
+      "dependencies": ["LoggingModule"],
+      "features": [
+        "Device registration",
+        "Azure AD integration",
+        "Intune enrollment",
+        "Autopilot profile assignment"
+      ]
+    },
+    {
+      "name": "PrivilegeManagement",
+      "description": "Manages elevation of privileges for administrative operations",
+      "criticalLevel": "Medium",
+      "dependencies": ["LoggingModule"],
+      "features": [
+        "Temporary admin account creation",
+        "Privilege elevation",
+        "Security context management",
+        "Credential handling"
+      ]
+    },
+    {
+      "name": "ConfigurationPreservation",
+      "description": "Preserves and migrates system and application configurations",
+      "criticalLevel": "Medium",
+      "dependencies": ["LoggingModule", "RollbackMechanism"],
+      "features": [
+        "Registry settings backup",
+        "Application settings migration",
+        "Configuration validation",
+        "Deployment preference preservation"
+      ]
+    },
+    {
+      "name": "LoggingModule",
+      "description": "Centralized logging and reporting",
+      "criticalLevel": "Medium",
+      "dependencies": [],
+      "features": [
+        "Event logging",
+        "Error tracking",
+        "Audit trails",
+        "Log file management"
+      ]
+    },
+    {
+      "name": "WorkspaceOneWizard",
+      "description": "UI for guiding users through the migration process",
+      "criticalLevel": "Low",
+      "dependencies": ["LoggingModule", "UserCommunication"],
+      "features": [
+        "Migration UI",
+        "User guidance",
+        "Progress tracking",
+        "Silent operation mode"
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "componentA": "RollbackMechanism",
+      "componentB": "MigrationVerification",
+      "ics": 7,
+      "fip": "High",
+      "rtd": "Sync",
+      "description": "Verification monitors migration status and triggers rollback on failure",
+      "integrationPoints": [
+        {
+          "functionA": "Test-MigrationSuccess",
+          "functionB": "Start-Rollback",
+          "dataExchange": "Migration status object"
+        }
+      ]
+    },
+    {
+      "componentA": "RollbackMechanism",
+      "componentB": "UserCommunication",
+      "ics": 4,
+      "fip": "Medium",
+      "rtd": "Async",
+      "description": "Rollback mechanism notifies users of rollback events",
+      "integrationPoints": [
+        {
+          "functionA": "Start-Rollback",
+          "functionB": "Send-UserNotification",
+          "dataExchange": "Rollback event details"
+        }
+      ]
+    },
+    {
+      "componentA": "MigrationVerification",
+      "componentB": "UserCommunication",
+      "ics": 5,
+      "fip": "Low",
+      "rtd": "Async",
+      "description": "Verification results are communicated to users",
+      "integrationPoints": [
+        {
+          "functionA": "Test-MigrationSuccess",
+          "functionB": "Send-UserNotification",
+          "dataExchange": "Verification results"
+        }
+      ]
+    },
+    {
+      "componentA": "ProfileTransfer",
+      "componentB": "RollbackMechanism",
+      "ics": 8,
+      "fip": "High",
+      "rtd": "Sync",
+      "description": "Profile transfer operations must be backed by rollback capability",
+      "integrationPoints": [
+        {
+          "functionA": "Transfer-UserProfile",
+          "functionB": "Backup-Configuration",
+          "dataExchange": "Profile data and paths"
+        },
+        {
+          "functionA": "Complete-ProfileTransfer",
+          "functionB": "Complete-MigrationTransaction",
+          "dataExchange": "Transaction ID"
+        }
+      ]
+    },
+    {
+      "componentA": "AutopilotIntegration",
+      "componentB": "MigrationVerification",
+      "ics": 6,
+      "fip": "Medium",
+      "rtd": "Sync",
+      "description": "Autopilot enrollment is verified as part of migration success",
+      "integrationPoints": [
+        {
+          "functionA": "Register-DeviceToAutopilot",
+          "functionB": "Test-DeviceEnrollment",
+          "dataExchange": "Device identity and enrollment status"
+        }
+      ]
+    },
+    {
+      "componentA": "UserCommunication",
+      "componentB": "LoggingModule",
+      "ics": 3,
+      "fip": "Low",
+      "rtd": "Async",
+      "description": "Communication events are logged for audit purposes",
+      "integrationPoints": [
+        {
+          "functionA": "Send-UserNotification",
+          "functionB": "Write-Log",
+          "dataExchange": "Notification details"
+        }
+      ]
+    },
+    {
+      "componentA": "PrivilegeManagement",
+      "componentB": "UserCommunication",
+      "ics": 2,
+      "fip": "Low",
+      "rtd": "Async",
+      "description": "Privilege elevation events may trigger user notifications",
+      "integrationPoints": [
+        {
+          "functionA": "New-TemporaryAdminAccount",
+          "functionB": "Send-AdminNotification",
+          "dataExchange": "Account creation details"
+        }
+      ]
+    },
+    {
+      "componentA": "ConfigurationPreservation",
+      "componentB": "RollbackMechanism",
+      "ics": 7,
+      "fip": "High",
+      "rtd": "Sync",
+      "description": "Configuration backups are essential for proper rollback",
+      "integrationPoints": [
+        {
+          "functionA": "Backup-Configuration",
+          "functionB": "Add-BackupToTransaction",
+          "dataExchange": "Backup metadata"
+        }
+      ]
+    },
+    {
+      "componentA": "WorkspaceOneWizard",
+      "componentB": "UserCommunication",
+      "ics": 6,
+      "fip": "Low",
+      "rtd": "Sync",
+      "description": "Wizard UI displays communications to users",
+      "integrationPoints": [
+        {
+          "functionA": "Show-MigrationProgress",
+          "functionB": "Get-UserStatusUpdate",
+          "dataExchange": "Progress status"
+        }
+      ]
+    }
+  ],
+  "riskAssessment": {
+    "highRiskRelationships": [
+      {
+        "relationship": "ProfileTransfer-RollbackMechanism",
+        "riskScore": 2.7,
+        "mitigationStrategy": "Transaction logs, atomic operations, staged profile transfer"
+      },
+      {
+        "relationship": "RollbackMechanism-MigrationVerification",
+        "riskScore": 2.5,
+        "mitigationStrategy": "Redundant verification paths, manual override option"
+      },
+      {
+        "relationship": "AutopilotIntegration-MigrationVerification",
+        "riskScore": 2.2,
+        "mitigationStrategy": "Retry logic, manual intervention hooks, staged verification"
+      }
+    ],
+    "performanceCriticalPaths": [
+      {
+        "path": ["ProfileTransfer", "RollbackMechanism", "MigrationVerification"],
+        "optimizationOpportunities": "Parallel backup operations, incremental profile transfer"
+      },
+      {
+        "path": ["AutopilotIntegration", "MigrationVerification"],
+        "optimizationOpportunities": "Background enrollment verification, retry queuing"
+      }
+    ]
+  },
+  "testCoverage": {
+    "integrationTests": [
+      {
+        "name": "Test-RollbackVerificationIntegration",
+        "components": ["RollbackMechanism", "MigrationVerification"],
+        "testCases": ["Success path", "Failure detection", "Partial failure handling"]
+      },
+      {
+        "name": "Test-ProfileTransferRollbackIntegration",
+        "components": ["ProfileTransfer", "RollbackMechanism"],
+        "testCases": ["Profile backup", "Incremental transfer", "Permissions preservation"]
+      },
+      {
+        "name": "Test-AutopilotVerificationIntegration",
+        "components": ["AutopilotIntegration", "MigrationVerification"],
+        "testCases": ["Enrollment success", "Token handling", "Retry mechanisms"]
+      }
+    ],
+    "performanceTests": [
+      {
+        "name": "Test-ProfileTransferPerformance",
+        "description": "Measures profile transfer performance under various conditions",
+        "thresholds": {
+          "smallProfile": "< 60 seconds",
+          "mediumProfile": "< 300 seconds",
+          "largeProfile": "< 900 seconds"
+        }
+      },
+      {
+        "name": "Test-RollbackPerformance",
+        "description": "Measures rollback operation performance",
+        "thresholds": {
+          "configOnly": "< 30 seconds",
+          "withProfiles": "< 180 seconds",
+          "fullSystem": "< 600 seconds"
+        }
+      }
+    ]
+  }
+} 

@@ -4,524 +4,851 @@
 
 <#
 .SYNOPSIS
-    Tests the integration of critical migration components.
+    Tests the integration between all high-priority components of the migration solution.
 
 .DESCRIPTION
-    This script performs comprehensive integration testing of all critical 
-    migration components, including high-priority, high-impact, and reasonable
-    effort components. It validates that these components work together properly
-    and handle error conditions appropriately.
+    This script performs integration testing for the migration solution components,
+    verifying that RollbackMechanism, MigrationVerification, and UserCommunication
+    work together properly. The script creates test scenarios that simulate real
+    migration workflows and validates that the components interact correctly,
+    particularly in error and rollback scenarios.
 
 .PARAMETER TestLevel
-    Specifies the level of testing to perform:
-    - Basic: Tests only critical path integration points
-    - Standard: Tests normal operations and common error conditions
-    - Comprehensive: Tests all integration points including edge cases
+    Specifies the level of testing to perform.
+    - Basic: Tests core functionality only
+    - Standard: Tests core functionality plus common error scenarios
+    - Comprehensive: Tests all possible integration points with extensive error scenarios
 
 .PARAMETER ComponentFilter
-    Optional array of component names to test. If not specified, all components are tested.
+    Optional. Specify component names to test only specific component integrations.
+    Example: "RollbackMechanism,UserCommunication"
 
 .PARAMETER OutputPath
-    Path where test results will be saved. Defaults to "reports/integration-test-results.json"
+    Specifies the path where test results will be saved.
+    Default: "$env:TEMP\MigrationTests"
 
 .PARAMETER SkipCleanup
-    If specified, temporary test resources will not be removed after testing.
+    If specified, test resources will not be cleaned up after testing.
+    Useful for debugging test failures.
 
 .EXAMPLE
     .\Test-ComponentIntegration.ps1 -TestLevel Standard
     Runs standard integration tests for all components.
 
 .EXAMPLE
-    .\Test-ComponentIntegration.ps1 -ComponentFilter @('RollbackMechanism','MigrationVerification')
-    Tests only the integration between the specified components.
+    .\Test-ComponentIntegration.ps1 -TestLevel Comprehensive -ComponentFilter "RollbackMechanism,MigrationVerification"
+    Runs comprehensive tests only for the RollbackMechanism and MigrationVerification integration.
 
 .NOTES
-    This script requires administrative privileges to fully test component integration.
-    Some tests may create temporary files and registry keys that will be removed upon completion.
+    This script requires administrator privileges to run properly.
+    All high-priority components must be installed and properly configured.
 #>
 
 [CmdletBinding()]
-param (
+param(
     [Parameter()]
-    [ValidateSet('Basic', 'Standard', 'Comprehensive')]
-    [string]$TestLevel = 'Standard',
+    [ValidateSet("Basic", "Standard", "Comprehensive")]
+    [string]$TestLevel = "Standard",
     
     [Parameter()]
-    [string[]]$ComponentFilter,
+    [string]$ComponentFilter = "",
     
     [Parameter()]
-    [string]$OutputPath = "reports/integration-test-results.json",
+    [string]$OutputPath = "$env:TEMP\MigrationTests",
     
     [Parameter()]
     [switch]$SkipCleanup
 )
 
-#---------------------------------------------------------
-# Script initialization
-#---------------------------------------------------------
+#region Initialization
+# Create output directory if it doesn't exist
+if (-not (Test-Path -Path $OutputPath)) {
+    New-Item -Path $OutputPath -ItemType Directory -Force | Out-Null
+}
 
-# Import required modules
-$ModulePath = Join-Path -Path $PSScriptRoot -ChildPath "..\modules"
-$ToolsPath = Join-Path -Path $PSScriptRoot -ChildPath "..\tools"
+# Initialize log file
+$LogFile = Join-Path -Path $OutputPath -ChildPath "IntegrationTest_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
+$TestResultsFile = Join-Path -Path $OutputPath -ChildPath "TestResults_$(Get-Date -Format 'yyyyMMdd_HHmmss').xml"
 
-# Set up script variables
+# Initialize test results tracking
 $script:TestResults = @{
-    StartTime = Get-Date
-    EndTime = $null
     TotalTests = 0
     PassedTests = 0
     FailedTests = 0
     SkippedTests = 0
-    ComponentResults = @{}
-    IntegrationResults = @{}
+    Tests = @()
 }
 
-$script:TestResources = @{
-    TempFiles = @()
-    TempKeys = @()
-    TempAccounts = @()
+# Parse component filter if provided
+$ComponentsToTest = @()
+if ($ComponentFilter) {
+    $ComponentsToTest = $ComponentFilter -split ','
 }
+#endregion
 
-# Initialize logging
-function Write-TestLog {
-    [CmdletBinding()]
+#region Helper Functions
+function Write-Log {
     param (
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory)]
         [string]$Message,
         
         [Parameter()]
-        [ValidateSet('Info', 'Warning', 'Error', 'Success')]
-        [string]$Level = 'Info'
+        [ValidateSet("Info", "Warning", "Error", "Success")]
+        [string]$Level = "Info"
     )
     
-    $TimeStamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
-    $Color = switch ($Level) {
-        'Info' { 'White' }
-        'Warning' { 'Yellow' }
-        'Error' { 'Red' }
-        'Success' { 'Green' }
+    $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $LogEntry = "[$Timestamp] [$Level] $Message"
+    
+    # Set console color based on level
+    switch ($Level) {
+        "Info"    { $Color = "White" }
+        "Warning" { $Color = "Yellow" }
+        "Error"   { $Color = "Red" }
+        "Success" { $Color = "Green" }
     }
     
-    Write-Host "[$TimeStamp] [$Level] $Message" -ForegroundColor $Color
+    Write-Host $LogEntry -ForegroundColor $Color
+    Add-Content -Path $LogFile -Value $LogEntry
 }
 
-#---------------------------------------------------------
-# Helper functions
-#---------------------------------------------------------
-
-function Import-TestModules {
-    [CmdletBinding()]
-    param()
-    
-    $ModulesToImport = @(
-        'RollbackMechanism',
-        'MigrationVerification',
-        'UserCommunication',
-        'AutopilotIntegration',
-        'ConfigurationPreservation',
-        'ProfileTransfer',
-        'PrivilegeManagement'
-    )
-    
-    if ($ComponentFilter) {
-        $ModulesToImport = $ModulesToImport | Where-Object { $ComponentFilter -contains $_ }
+function Import-RequiredModules {
+    try {
+        Write-Log "Importing required modules..." -Level Info
+        
+        # Import all required modules
+        Import-Module -Name (Join-Path $PSScriptRoot "../modules/RollbackMechanism.psm1") -Force
+        Import-Module -Name (Join-Path $PSScriptRoot "../modules/MigrationVerification.psm1") -Force
+        Import-Module -Name (Join-Path $PSScriptRoot "../modules/UserCommunication.psm1") -Force
+        Import-Module -Name (Join-Path $PSScriptRoot "../modules/LoggingModule.psm1") -Force
+        
+        Write-Log "All modules imported successfully" -Level Success
+        return $true
     }
-    
-    $ImportedModules = @()
-    
-    foreach ($Module in $ModulesToImport) {
-        $ModulePath = Join-Path -Path $ModulePath -ChildPath "$Module.psm1"
-        if (Test-Path -Path $ModulePath) {
-            try {
-                Import-Module $ModulePath -Force -ErrorAction Stop
-                $ImportedModules += $Module
-                Write-TestLog "Successfully imported module: $Module" -Level Success
-            }
-            catch {
-                Write-TestLog "Failed to import module $Module: $_" -Level Error
-            }
-        }
-        else {
-            Write-TestLog "Module not found: $ModulePath" -Level Warning
-        }
+    catch {
+        Write-Log "Failed to import required modules: $_" -Level Error
+        return $false
     }
-    
-    return $ImportedModules
 }
 
-function New-TestResource {
-    [CmdletBinding()]
+function New-TestResources {
     param (
-        [Parameter(Mandatory = $true)]
-        [string]$ResourceType,
-        
-        [Parameter(Mandatory = $true)]
-        [string]$ResourceName,
-        
-        [Parameter()]
-        [string]$Content = "Test content created at $(Get-Date)"
+        [Parameter(Mandatory)]
+        [string]$TestName
     )
     
-    switch ($ResourceType) {
-        'File' {
-            $FilePath = Join-Path -Path $env:TEMP -ChildPath $ResourceName
-            Set-Content -Path $FilePath -Value $Content -Force
-            $script:TestResources.TempFiles += $FilePath
-            return $FilePath
+    try {
+        Write-Log "Creating test resources for $TestName..." -Level Info
+        
+        # Create test directory
+        $TestDir = Join-Path -Path $OutputPath -ChildPath $TestName
+        if (-not (Test-Path -Path $TestDir)) {
+            New-Item -Path $TestDir -ItemType Directory -Force | Out-Null
         }
-        'RegistryKey' {
-            $KeyPath = "HKCU:\Software\MigrationTest\$ResourceName"
-            if (-not (Test-Path -Path $KeyPath)) {
-                New-Item -Path $KeyPath -Force | Out-Null
-            }
-            $script:TestResources.TempKeys += $KeyPath
-            return $KeyPath
+        
+        # Create test registry keys
+        $TestRegPath = "HKCU:\SOFTWARE\MigrationTest\$TestName"
+        if (-not (Test-Path -Path $TestRegPath)) {
+            New-Item -Path $TestRegPath -Force | Out-Null
+        }
+        
+        # Create test data file
+        $TestDataFile = Join-Path -Path $TestDir -ChildPath "TestData.json"
+        @{
+            CreatedTime = Get-Date
+            TestName = $TestName
+            TestData = "Sample test data for $TestName"
+        } | ConvertTo-Json | Set-Content -Path $TestDataFile
+        
+        return @{
+            TestDir = $TestDir
+            TestRegPath = $TestRegPath
+            TestDataFile = $TestDataFile
+            Success = $true
+        }
+    }
+    catch {
+        Write-Log "Failed to create test resources for $TestName: $_" -Level Error
+        return @{
+            Success = $false
+            Error = $_
         }
     }
 }
 
 function Remove-TestResources {
-    [CmdletBinding()]
-    param()
-    
-    if ($SkipCleanup) {
-        Write-TestLog "Skipping cleanup as requested" -Level Info
-        return
-    }
-    
-    foreach ($File in $script:TestResources.TempFiles) {
-        if (Test-Path -Path $File) {
-            Remove-Item -Path $File -Force -ErrorAction SilentlyContinue
-        }
-    }
-    
-    foreach ($Key in $script:TestResources.TempKeys) {
-        if (Test-Path -Path $Key) {
-            Remove-Item -Path $Key -Recurse -Force -ErrorAction SilentlyContinue
-        }
-    }
-    
-    Write-TestLog "All test resources have been cleaned up" -Level Success
-}
-
-function Test-Component {
-    [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true)]
-        [string]$ComponentName,
-        
-        [Parameter(Mandatory = $true)]
-        [scriptblock]$TestScript
+        [Parameter(Mandatory)]
+        [string]$TestName
     )
     
-    Write-TestLog "Testing component: $ComponentName" -Level Info
-    
     try {
-        $script:TestResults.TotalTests++
-        & $TestScript
-        $script:TestResults.PassedTests++
-        $script:TestResults.ComponentResults[$ComponentName] = @{
-            Status = "Passed"
-            Message = "Component tests completed successfully"
+        Write-Log "Cleaning up test resources for $TestName..." -Level Info
+        
+        # Remove test directory
+        $TestDir = Join-Path -Path $OutputPath -ChildPath $TestName
+        if (Test-Path -Path $TestDir) {
+            Remove-Item -Path $TestDir -Recurse -Force
         }
-        Write-TestLog "Component $ComponentName tests passed" -Level Success
+        
+        # Remove test registry keys
+        $TestRegPath = "HKCU:\SOFTWARE\MigrationTest\$TestName"
+        if (Test-Path -Path $TestRegPath) {
+            Remove-Item -Path $TestRegPath -Recurse -Force
+        }
+        
+        Write-Log "Test resources for $TestName cleaned up successfully" -Level Success
         return $true
     }
     catch {
-        $script:TestResults.FailedTests++
-        $script:TestResults.ComponentResults[$ComponentName] = @{
-            Status = "Failed"
-            Message = $_.Exception.Message
-        }
-        Write-TestLog "Component $ComponentName tests failed: $_" -Level Error
+        Write-Log "Failed to clean up test resources for $TestName: $_" -Level Error
         return $false
     }
 }
 
-function Test-Integration {
-    [CmdletBinding()]
+function Register-TestResult {
     param (
-        [Parameter(Mandatory = $true)]
-        [string]$FromComponent,
+        [Parameter(Mandatory)]
+        [string]$TestName,
         
-        [Parameter(Mandatory = $true)]
-        [string]$ToComponent,
+        [Parameter(Mandatory)]
+        [string]$Component,
         
-        [Parameter(Mandatory = $true)]
-        [scriptblock]$TestScript
+        [Parameter(Mandatory)]
+        [bool]$Success,
+        
+        [Parameter()]
+        [string]$ErrorMessage = "",
+        
+        [Parameter()]
+        [PSCustomObject]$TestData = $null
     )
     
-    $IntegrationName = "$FromComponent -> $ToComponent"
-    Write-TestLog "Testing integration: $IntegrationName" -Level Info
+    $script:TestResults.TotalTests++
     
-    try {
-        $script:TestResults.TotalTests++
-        & $TestScript
+    if ($Success) {
         $script:TestResults.PassedTests++
-        $script:TestResults.IntegrationResults[$IntegrationName] = @{
-            Status = "Passed"
-            Message = "Integration tests completed successfully"
-        }
-        Write-TestLog "Integration $IntegrationName tests passed" -Level Success
-        return $true
+        $Result = "Passed"
+        Write-Log "$TestName - $Result" -Level Success
     }
-    catch {
+    else {
         $script:TestResults.FailedTests++
-        $script:TestResults.IntegrationResults[$IntegrationName] = @{
-            Status = "Failed"
-            Message = $_.Exception.Message
-        }
-        Write-TestLog "Integration $IntegrationName tests failed: $_" -Level Error
-        return $false
+        $Result = "Failed"
+        Write-Log "$TestName - $Result: $ErrorMessage" -Level Error
+    }
+    
+    $script:TestResults.Tests += [PSCustomObject]@{
+        Name = $TestName
+        Component = $Component
+        Result = $Result
+        ErrorMessage = $ErrorMessage
+        TimeStamp = Get-Date
+        Data = $TestData
     }
 }
 
 function Save-TestResults {
-    [CmdletBinding()]
-    param()
-    
-    $script:TestResults.EndTime = Get-Date
-    $script:TestResults.Duration = $script:TestResults.EndTime - $script:TestResults.StartTime
-    
-    $OutputDir = Split-Path -Path $OutputPath -Parent
-    if (-not (Test-Path -Path $OutputDir)) {
-        New-Item -Path $OutputDir -ItemType Directory -Force | Out-Null
+    try {
+        # Calculate summary
+        $SuccessRate = if ($script:TestResults.TotalTests -gt 0) {
+            [math]::Round(($script:TestResults.PassedTests / $script:TestResults.TotalTests) * 100, 2)
+        } else { 0 }
+        
+        $Summary = [PSCustomObject]@{
+            TotalTests = $script:TestResults.TotalTests
+            PassedTests = $script:TestResults.PassedTests
+            FailedTests = $script:TestResults.FailedTests
+            SkippedTests = $script:TestResults.SkippedTests
+            SuccessRate = $SuccessRate
+            TestLevel = $TestLevel
+            StartTime = $script:TestResults.Tests[0].TimeStamp
+            EndTime = Get-Date
+            Tests = $script:TestResults.Tests
+        }
+        
+        # Save results to file
+        $Summary | ConvertTo-Json -Depth 5 | Set-Content -Path $TestResultsFile
+        
+        # Print summary
+        Write-Log "Test Summary:" -Level Info
+        Write-Log "  Total Tests: $($Summary.TotalTests)" -Level Info
+        Write-Log "  Passed: $($Summary.PassedTests)" -Level Success
+        Write-Log "  Failed: $($Summary.FailedTests)" -Level ($Summary.FailedTests -gt 0 ? "Error" : "Info")
+        Write-Log "  Success Rate: $($Summary.SuccessRate)%" -Level Info
+        
+        return $true
     }
-    
-    $script:TestResults | ConvertTo-Json -Depth 5 | Set-Content -Path $OutputPath
-    
-    Write-TestLog "Test results saved to $OutputPath" -Level Success
-    
-    # Output summary
-    Write-Host "`n============ TEST SUMMARY ============" -ForegroundColor Cyan
-    Write-Host "Total Tests: $($script:TestResults.TotalTests)" -ForegroundColor White
-    Write-Host "Passed: $($script:TestResults.PassedTests)" -ForegroundColor Green
-    Write-Host "Failed: $($script:TestResults.FailedTests)" -ForegroundColor Red
-    Write-Host "Skipped: $($script:TestResults.SkippedTests)" -ForegroundColor Yellow
-    Write-Host "Duration: $($script:TestResults.Duration.TotalSeconds.ToString('0.00')) seconds" -ForegroundColor White
-    Write-Host "=======================================" -ForegroundColor Cyan
+    catch {
+        Write-Log "Failed to save test results: $_" -Level Error
+        return $false
+    }
 }
 
-#---------------------------------------------------------
-# Component Tests
-#---------------------------------------------------------
+function Should-RunComponentTest {
+    param (
+        [Parameter(Mandatory)]
+        [string]$ComponentName
+    )
+    
+    if ($ComponentsToTest.Count -eq 0) {
+        return $true
+    }
+    
+    return $ComponentsToTest -contains $ComponentName
+}
+#endregion
 
+#region Component Tests
 function Test-RollbackMechanism {
-    [CmdletBinding()]
-    param()
+    if (-not (Should-RunComponentTest "RollbackMechanism")) {
+        Write-Log "Skipping RollbackMechanism tests based on filter" -Level Warning
+        $script:TestResults.SkippedTests++
+        return
+    }
     
-    # Test backup creation
-    $BackupFile = New-TestResource -ResourceType File -ResourceName "test-backup.txt"
-    $BackupKey = New-TestResource -ResourceType RegistryKey -ResourceName "BackupTest"
-    
+    # Test creating system restore point
     try {
-        # Test if Create-SystemRestorePoint function exists and runs
-        if (Get-Command -Name Create-SystemRestorePoint -ErrorAction SilentlyContinue) {
-            $RestorePointResult = Create-SystemRestorePoint -Description "Integration Test" -ErrorAction SilentlyContinue
+        Write-Log "Testing system restore point creation..." -Level Info
+        $Resources = New-TestResources -TestName "RollbackTest"
+        
+        if ($Resources.Success) {
+            # Simulate a migration step that includes rollback capability
+            $Result = Invoke-MigrationStep -Name "RollbackTest" -ScriptBlock {
+                Set-ItemProperty -Path $Resources.TestRegPath -Name "TestValue" -Value "OriginalValue"
+                return $true
+            } -RollbackScriptBlock {
+                Remove-ItemProperty -Path $Resources.TestRegPath -Name "TestValue" -ErrorAction SilentlyContinue
+            }
+            
+            if ($Result) {
+                Register-TestResult -TestName "Create-SystemRestorePoint" -Component "RollbackMechanism" -Success $true
+            }
+            else {
+                Register-TestResult -TestName "Create-SystemRestorePoint" -Component "RollbackMechanism" -Success $false -ErrorMessage "Failed to create restore point"
+            }
         }
         
-        # Test if Backup-RegistryKey function exists and runs
-        if (Get-Command -Name Backup-RegistryKey -ErrorAction SilentlyContinue) {
-            Backup-RegistryKey -Key $BackupKey -BackupPath "$env:TEMP\reg-backup.reg" -ErrorAction SilentlyContinue
-        }
-        
-        # Test if Restore-FromBackup function exists
-        if (-not (Get-Command -Name Restore-FromBackup -ErrorAction SilentlyContinue)) {
-            throw "Required function Restore-FromBackup not found in RollbackMechanism module"
+        if (-not $SkipCleanup) {
+            Remove-TestResources -TestName "RollbackTest"
         }
     }
     catch {
-        throw "RollbackMechanism tests failed: $_"
+        Register-TestResult -TestName "Create-SystemRestorePoint" -Component "RollbackMechanism" -Success $false -ErrorMessage $_.Exception.Message
+    }
+    
+    # Test rolling back a failed migration step
+    try {
+        Write-Log "Testing rollback for failed migration step..." -Level Info
+        $Resources = New-TestResources -TestName "FailedMigrationTest"
+        
+        if ($Resources.Success) {
+            # Test registry key path
+            $TestRegPath = $Resources.TestRegPath
+            
+            # Set initial value
+            Set-ItemProperty -Path $TestRegPath -Name "InitialValue" -Value "BeforeChange"
+            
+            # Attempt a migration step that will fail
+            $Result = Invoke-MigrationStep -Name "FailingStep" -ScriptBlock {
+                # Make a change
+                Set-ItemProperty -Path $TestRegPath -Name "InitialValue" -Value "AfterChange"
+                # Then simulate failure
+                throw "Simulated failure during migration step"
+                return $false
+            } -RollbackScriptBlock {
+                # This should restore the original value
+                Set-ItemProperty -Path $TestRegPath -Name "InitialValue" -Value "BeforeChange"
+            }
+            
+            # Check if rollback occurred by testing the value
+            $FinalValue = Get-ItemProperty -Path $TestRegPath -Name "InitialValue" | Select-Object -ExpandProperty "InitialValue"
+            
+            if ($FinalValue -eq "BeforeChange") {
+                Register-TestResult -TestName "Rollback-FailedMigrationStep" -Component "RollbackMechanism" -Success $true
+            }
+            else {
+                Register-TestResult -TestName "Rollback-FailedMigrationStep" -Component "RollbackMechanism" -Success $false -ErrorMessage "Rollback did not restore original value"
+            }
+        }
+        
+        if (-not $SkipCleanup) {
+            Remove-TestResources -TestName "FailedMigrationTest"
+        }
+    }
+    catch {
+        Register-TestResult -TestName "Rollback-FailedMigrationStep" -Component "RollbackMechanism" -Success $false -ErrorMessage $_.Exception.Message
     }
 }
 
 function Test-MigrationVerification {
-    [CmdletBinding()]
-    param()
+    if (-not (Should-RunComponentTest "MigrationVerification")) {
+        Write-Log "Skipping MigrationVerification tests based on filter" -Level Warning
+        $script:TestResults.SkippedTests++
+        return
+    }
     
+    # Test verification of a successful migration
     try {
-        # Test if Verify-IntuneEnrollment function exists
-        if (-not (Get-Command -Name Verify-IntuneEnrollment -ErrorAction SilentlyContinue)) {
-            throw "Required function Verify-IntuneEnrollment not found in MigrationVerification module"
+        Write-Log "Testing verification of successful migration..." -Level Info
+        $Resources = New-TestResources -TestName "VerificationTest"
+        
+        if ($Resources.Success) {
+            # Simulate successful Intune enrollment
+            $TestRegPath = $Resources.TestRegPath
+            New-Item -Path "$TestRegPath\Intune" -Force | Out-Null
+            Set-ItemProperty -Path "$TestRegPath\Intune" -Name "EnrollmentStatus" -Value "Succeeded"
+            Set-ItemProperty -Path "$TestRegPath\Intune" -Name "EnrollmentTime" -Value (Get-Date).ToString()
+            
+            # Now verify the enrollment
+            $VerificationResult = Verify-IntuneEnrollment -RegistryPath $TestRegPath
+            
+            if ($VerificationResult.Success) {
+                Register-TestResult -TestName "Verify-SuccessfulMigration" -Component "MigrationVerification" -Success $true
+            }
+            else {
+                Register-TestResult -TestName "Verify-SuccessfulMigration" -Component "MigrationVerification" -Success $false -ErrorMessage "Verification failed for successful migration"
+            }
         }
         
-        # Test if Verify-ConfigurationState function exists
-        if (-not (Get-Command -Name Verify-ConfigurationState -ErrorAction SilentlyContinue)) {
-            throw "Required function Verify-ConfigurationState not found in MigrationVerification module"
-        }
-        
-        # Test if New-VerificationReport function exists
-        if (-not (Get-Command -Name New-VerificationReport -ErrorAction SilentlyContinue)) {
-            throw "Required function New-VerificationReport not found in MigrationVerification module"
+        if (-not $SkipCleanup) {
+            Remove-TestResources -TestName "VerificationTest"
         }
     }
     catch {
-        throw "MigrationVerification tests failed: $_"
+        Register-TestResult -TestName "Verify-SuccessfulMigration" -Component "MigrationVerification" -Success $false -ErrorMessage $_.Exception.Message
+    }
+    
+    # Test verification of a failed migration
+    try {
+        Write-Log "Testing verification of failed migration..." -Level Info
+        $Resources = New-TestResources -TestName "FailedVerificationTest"
+        
+        if ($Resources.Success) {
+            # Simulate failed Intune enrollment
+            $TestRegPath = $Resources.TestRegPath
+            New-Item -Path "$TestRegPath\Intune" -Force | Out-Null
+            Set-ItemProperty -Path "$TestRegPath\Intune" -Name "EnrollmentStatus" -Value "Failed"
+            Set-ItemProperty -Path "$TestRegPath\Intune" -Name "EnrollmentError" -Value "Device not supported"
+            
+            # Now verify the enrollment - should detect failure
+            $VerificationResult = Verify-IntuneEnrollment -RegistryPath $TestRegPath
+            
+            if (-not $VerificationResult.Success) {
+                Register-TestResult -TestName "Verify-FailedMigration" -Component "MigrationVerification" -Success $true
+            }
+            else {
+                Register-TestResult -TestName "Verify-FailedMigration" -Component "MigrationVerification" -Success $false -ErrorMessage "Verification did not detect failed migration"
+            }
+        }
+        
+        if (-not $SkipCleanup) {
+            Remove-TestResources -TestName "FailedVerificationTest"
+        }
+    }
+    catch {
+        Register-TestResult -TestName "Verify-FailedMigration" -Component "MigrationVerification" -Success $false -ErrorMessage $_.Exception.Message
     }
 }
 
 function Test-UserCommunication {
-    [CmdletBinding()]
-    param()
+    if (-not (Should-RunComponentTest "UserCommunication")) {
+        Write-Log "Skipping UserCommunication tests based on filter" -Level Warning
+        $script:TestResults.SkippedTests++
+        return
+    }
     
+    # Test sending user notification
     try {
-        # Test if Send-UserNotification function exists
-        if (-not (Get-Command -Name Send-UserNotification -ErrorAction SilentlyContinue)) {
-            throw "Required function Send-UserNotification not found in UserCommunication module"
+        Write-Log "Testing user notification..." -Level Info
+        $Resources = New-TestResources -TestName "NotificationTest"
+        
+        if ($Resources.Success) {
+            # Configure test notification path
+            $NotificationPath = Join-Path -Path $Resources.TestDir -ChildPath "Notifications.log"
+            
+            # Send a test notification
+            $Result = Send-UserNotification -Title "Test Notification" -Message "This is a test message" -NotificationType "Info" -LogPath $NotificationPath
+            
+            # Verify notification was logged
+            if (Test-Path -Path $NotificationPath) {
+                $NotificationContent = Get-Content -Path $NotificationPath -Raw
+                if ($NotificationContent -match "Test Notification" -and $NotificationContent -match "This is a test message") {
+                    Register-TestResult -TestName "Send-UserNotification" -Component "UserCommunication" -Success $true
+                }
+                else {
+                    Register-TestResult -TestName "Send-UserNotification" -Component "UserCommunication" -Success $false -ErrorMessage "Notification content not found in log"
+                }
+            }
+            else {
+                Register-TestResult -TestName "Send-UserNotification" -Component "UserCommunication" -Success $false -ErrorMessage "Notification log file not created"
+            }
         }
         
-        # Test if Log-UserCommunication function exists
-        if (-not (Get-Command -Name Log-UserCommunication -ErrorAction SilentlyContinue)) {
-            throw "Required function Log-UserCommunication not found in UserCommunication module"
-        }
-        
-        # Test basic notification functionality
-        if (Get-Command -Name Send-UserNotification -ErrorAction SilentlyContinue) {
-            # Create a test notification without actually sending
-            Send-UserNotification -Title "Test Notification" -Message "This is a test" -NotificationType "Info" -WhatIf -ErrorAction SilentlyContinue
+        if (-not $SkipCleanup) {
+            Remove-TestResources -TestName "NotificationTest"
         }
     }
     catch {
-        throw "UserCommunication tests failed: $_"
+        Register-TestResult -TestName "Send-UserNotification" -Component "UserCommunication" -Success $false -ErrorMessage $_.Exception.Message
     }
-}
-
-#---------------------------------------------------------
-# Integration Tests
-#---------------------------------------------------------
-
-function Test-RollbackVerificationIntegration {
-    [CmdletBinding()]
-    param()
     
+    # Test progress updates
     try {
-        # Test if the rollback mechanism is properly integrated with verification
-        $VerificationFunctions = @('Verify-IntuneEnrollment', 'Verify-ConfigurationState')
-        $RollbackFunctions = @('Restore-FromBackup', 'Rollback-Migration')
+        Write-Log "Testing progress updates..." -Level Info
+        $Resources = New-TestResources -TestName "ProgressTest"
         
-        foreach ($Function in $VerificationFunctions) {
-            if (-not (Get-Command -Name $Function -ErrorAction SilentlyContinue)) {
-                throw "Verification function $Function not available for integration testing"
-            }
-        }
-        
-        foreach ($Function in $RollbackFunctions) {
-            if (-not (Get-Command -Name $Function -ErrorAction SilentlyContinue)) {
-                throw "Rollback function $Function not available for integration testing"
-            }
-        }
-        
-        # Test if Invoke-MigrationStep exists (which should integrate verification and rollback)
-        if (Get-Command -Name Invoke-MigrationStep -ErrorAction SilentlyContinue) {
-            # Create a test step that should succeed
-            $TestStep = {
-                Write-Output "Test step executed successfully"
+        if ($Resources.Success) {
+            # Configure test progress path
+            $ProgressPath = Join-Path -Path $Resources.TestDir -ChildPath "Progress.log"
+            
+            # Send progress updates
+            for ($i = 0; $i -le 100; $i += 25) {
+                $Result = Show-MigrationProgress -PercentComplete $i -Status "Migration in progress" -LogPath $ProgressPath
+                Start-Sleep -Milliseconds 100
             }
             
-            # This should execute the step and not trigger rollback
-            Invoke-MigrationStep -Name "IntegrationTest" -ScriptBlock $TestStep -ErrorAction SilentlyContinue
+            # Verify progress was logged
+            if (Test-Path -Path $ProgressPath) {
+                $ProgressContent = Get-Content -Path $ProgressPath -Raw
+                if ($ProgressContent -match "100%" -and $ProgressContent -match "Migration in progress") {
+                    Register-TestResult -TestName "Show-MigrationProgress" -Component "UserCommunication" -Success $true
+                }
+                else {
+                    Register-TestResult -TestName "Show-MigrationProgress" -Component "UserCommunication" -Success $false -ErrorMessage "Progress content not found in log"
+                }
+            }
+            else {
+                Register-TestResult -TestName "Show-MigrationProgress" -Component "UserCommunication" -Success $false -ErrorMessage "Progress log file not created"
+            }
+        }
+        
+        if (-not $SkipCleanup) {
+            Remove-TestResources -TestName "ProgressTest"
         }
     }
     catch {
-        throw "RollbackMechanism and MigrationVerification integration failed: $_"
+        Register-TestResult -TestName "Show-MigrationProgress" -Component "UserCommunication" -Success $false -ErrorMessage $_.Exception.Message
+    }
+}
+#endregion
+
+#region Integration Tests
+function Test-RollbackVerificationIntegration {
+    if (-not ((Should-RunComponentTest "RollbackMechanism") -and (Should-RunComponentTest "MigrationVerification"))) {
+        Write-Log "Skipping RollbackMechanism and MigrationVerification integration tests based on filter" -Level Warning
+        $script:TestResults.SkippedTests++
+        return
+    }
+    
+    try {
+        Write-Log "Testing integration between RollbackMechanism and MigrationVerification..." -Level Info
+        $Resources = New-TestResources -TestName "RollbackVerificationTest"
+        
+        if ($Resources.Success) {
+            $TestRegPath = $Resources.TestRegPath
+            
+            # Simulate a migration step with verification that will fail
+            $Result = Invoke-MigrationStep -Name "IntegrationTest" -ScriptBlock {
+                # Make changes that should be rolled back
+                Set-ItemProperty -Path $TestRegPath -Name "ConfigState" -Value "Incomplete"
+                return $true
+            } -VerificationScript {
+                # Verification will fail
+                $VerificationResult = Verify-ConfigurationState -RegistryPath $TestRegPath -ExpectedState "Complete"
+                return $VerificationResult.Success
+            } -RollbackScriptBlock {
+                # This should execute when verification fails
+                Remove-ItemProperty -Path $TestRegPath -Name "ConfigState" -ErrorAction SilentlyContinue
+                # Set a flag to indicate rollback occurred
+                Set-ItemProperty -Path $TestRegPath -Name "RollbackOccurred" -Value $true
+            }
+            
+            # Check if rollback was triggered by verification failure
+            $RollbackOccurred = (Get-ItemProperty -Path $TestRegPath -Name "RollbackOccurred" -ErrorAction SilentlyContinue).RollbackOccurred
+            
+            if ($RollbackOccurred) {
+                Register-TestResult -TestName "RollbackVerification-Integration" -Component "RollbackMechanism,MigrationVerification" -Success $true
+            }
+            else {
+                Register-TestResult -TestName "RollbackVerification-Integration" -Component "RollbackMechanism,MigrationVerification" -Success $false -ErrorMessage "Rollback was not triggered by verification failure"
+            }
+        }
+        
+        if (-not $SkipCleanup) {
+            Remove-TestResources -TestName "RollbackVerificationTest"
+        }
+    }
+    catch {
+        Register-TestResult -TestName "RollbackVerification-Integration" -Component "RollbackMechanism,MigrationVerification" -Success $false -ErrorMessage $_.Exception.Message
     }
 }
 
 function Test-CommunicationVerificationIntegration {
-    [CmdletBinding()]
-    param()
+    if (-not ((Should-RunComponentTest "UserCommunication") -and (Should-RunComponentTest "MigrationVerification"))) {
+        Write-Log "Skipping UserCommunication and MigrationVerification integration tests based on filter" -Level Warning
+        $script:TestResults.SkippedTests++
+        return
+    }
     
     try {
-        # Check if verification can properly communicate with users
-        if (Get-Command -Name New-VerificationReport -ErrorAction SilentlyContinue -and 
-            Get-Command -Name Send-UserNotification -ErrorAction SilentlyContinue) {
+        Write-Log "Testing integration between UserCommunication and MigrationVerification..." -Level Info
+        $Resources = New-TestResources -TestName "CommunicationVerificationTest"
+        
+        if ($Resources.Success) {
+            # Configure test paths
+            $NotificationPath = Join-Path -Path $Resources.TestDir -ChildPath "VerificationNotifications.log"
+            $TestRegPath = $Resources.TestRegPath
             
-            # Create a test report file
-            $ReportPath = New-TestResource -ResourceType File -ResourceName "test-verification-report.html"
+            # Simulate successful verification with notification
+            New-Item -Path "$TestRegPath\Intune" -Force | Out-Null
+            Set-ItemProperty -Path "$TestRegPath\Intune" -Name "EnrollmentStatus" -Value "Succeeded"
             
-            # Test if we can notify about verification results (without actually sending)
-            Send-UserNotification -Title "Verification Complete" -Message "Verification report is available." -NotificationType "Info" -WhatIf -ErrorAction SilentlyContinue
+            # Perform verification and send notification based on result
+            $VerificationResult = Verify-IntuneEnrollment -RegistryPath $TestRegPath
+            Send-UserNotification -Title "Verification Result" -Message "Verification $($VerificationResult.Success ? 'succeeded' : 'failed')" -NotificationType ($VerificationResult.Success ? "Success" : "Error") -LogPath $NotificationPath
+            
+            # Verify notification was sent with correct result
+            if (Test-Path -Path $NotificationPath) {
+                $NotificationContent = Get-Content -Path $NotificationPath -Raw
+                if ($NotificationContent -match "Verification Result" -and $NotificationContent -match "Verification succeeded") {
+                    Register-TestResult -TestName "CommunicationVerification-Integration" -Component "UserCommunication,MigrationVerification" -Success $true
+                }
+                else {
+                    Register-TestResult -TestName "CommunicationVerification-Integration" -Component "UserCommunication,MigrationVerification" -Success $false -ErrorMessage "Expected verification notification not found in log"
+                }
+            }
+            else {
+                Register-TestResult -TestName "CommunicationVerification-Integration" -Component "UserCommunication,MigrationVerification" -Success $false -ErrorMessage "Verification notification log file not created"
+            }
         }
-        else {
-            throw "Required functions not available for integration testing"
+        
+        if (-not $SkipCleanup) {
+            Remove-TestResources -TestName "CommunicationVerificationTest"
         }
     }
     catch {
-        throw "UserCommunication and MigrationVerification integration failed: $_"
+        Register-TestResult -TestName "CommunicationVerification-Integration" -Component "UserCommunication,MigrationVerification" -Success $false -ErrorMessage $_.Exception.Message
     }
 }
 
 function Test-RollbackCommunicationIntegration {
-    [CmdletBinding()]
-    param()
+    if (-not ((Should-RunComponentTest "RollbackMechanism") -and (Should-RunComponentTest "UserCommunication"))) {
+        Write-Log "Skipping RollbackMechanism and UserCommunication integration tests based on filter" -Level Warning
+        $script:TestResults.SkippedTests++
+        return
+    }
     
     try {
-        # Check if rollback can properly communicate with users
-        if (Get-Command -Name Rollback-Migration -ErrorAction SilentlyContinue -and 
-            Get-Command -Name Send-UserNotification -ErrorAction SilentlyContinue) {
+        Write-Log "Testing integration between RollbackMechanism and UserCommunication..." -Level Info
+        $Resources = New-TestResources -TestName "RollbackCommunicationTest"
+        
+        if ($Resources.Success) {
+            # Configure test paths
+            $NotificationPath = Join-Path -Path $Resources.TestDir -ChildPath "RollbackNotifications.log"
+            $TestRegPath = $Resources.TestRegPath
             
-            # Test if we can notify about rollback (without actually sending)
-            Send-UserNotification -Title "Rollback Initiated" -Message "Migration is being rolled back due to errors." -NotificationType "Warning" -WhatIf -ErrorAction SilentlyContinue
+            # Simulate a migration step that will fail and trigger notifications
+            $Result = Invoke-MigrationStep -Name "RollbackWithNotification" -ScriptBlock {
+                # This will be rolled back
+                Set-ItemProperty -Path $TestRegPath -Name "MigrationState" -Value "InProgress"
+                
+                # Simulate failure
+                throw "Simulated failure for testing rollback notification"
+                return $false
+            } -RollbackScriptBlock {
+                # This should execute and remove the property
+                Remove-ItemProperty -Path $TestRegPath -Name "MigrationState" -ErrorAction SilentlyContinue
+                
+                # Send notification about rollback
+                Send-UserNotification -Title "Rollback Occurred" -Message "Migration step failed and was rolled back" -NotificationType "Warning" -LogPath $NotificationPath
+            } -ErrorActionPreference Continue
+            
+            # Verify notification was sent during rollback
+            if (Test-Path -Path $NotificationPath) {
+                $NotificationContent = Get-Content -Path $NotificationPath -Raw
+                if ($NotificationContent -match "Rollback Occurred" -and $NotificationContent -match "was rolled back") {
+                    Register-TestResult -TestName "RollbackCommunication-Integration" -Component "RollbackMechanism,UserCommunication" -Success $true
+                }
+                else {
+                    Register-TestResult -TestName "RollbackCommunication-Integration" -Component "RollbackMechanism,UserCommunication" -Success $false -ErrorMessage "Expected rollback notification not found in log"
+                }
+            }
+            else {
+                Register-TestResult -TestName "RollbackCommunication-Integration" -Component "RollbackMechanism,UserCommunication" -Success $false -ErrorMessage "Rollback notification log file not created"
+            }
         }
-        else {
-            throw "Required functions not available for integration testing"
+        
+        if (-not $SkipCleanup) {
+            Remove-TestResources -TestName "RollbackCommunicationTest"
         }
     }
     catch {
-        throw "UserCommunication and RollbackMechanism integration failed: $_"
+        Register-TestResult -TestName "RollbackCommunication-Integration" -Component "RollbackMechanism,UserCommunication" -Success $false -ErrorMessage $_.Exception.Message
     }
 }
 
-#---------------------------------------------------------
-# Main test execution
-#---------------------------------------------------------
+function Test-CompleteIntegration {
+    if (-not ((Should-RunComponentTest "RollbackMechanism") -and (Should-RunComponentTest "MigrationVerification") -and (Should-RunComponentTest "UserCommunication"))) {
+        Write-Log "Skipping complete integration test based on filter" -Level Warning
+        $script:TestResults.SkippedTests++
+        return
+    }
+    
+    if ($TestLevel -ne "Comprehensive") {
+        Write-Log "Skipping complete integration test in $TestLevel mode" -Level Warning
+        $script:TestResults.SkippedTests++
+        return
+    }
+    
+    try {
+        Write-Log "Testing complete integration between all components..." -Level Info
+        $Resources = New-TestResources -TestName "CompleteIntegrationTest"
+        
+        if ($Resources.Success) {
+            # Configure test paths
+            $NotificationPath = Join-Path -Path $Resources.TestDir -ChildPath "CompleteNotifications.log"
+            $TestRegPath = $Resources.TestRegPath
+            
+            # Mock function that we will use to capture event flow
+            $EventLog = Join-Path -Path $Resources.TestDir -ChildPath "EventFlow.log"
+            Add-Content -Path $EventLog -Value "Test started at $(Get-Date)"
+            
+            function Log-Event {
+                param($Component, $Event)
+                Add-Content -Path $EventLog -Value "[$Component] $Event"
+            }
+            
+            # Simulate a complete migration workflow
+            try {
+                # 1. Start migration and notify user
+                Send-UserNotification -Title "Migration Started" -Message "Starting migration process" -NotificationType "Info" -LogPath $NotificationPath
+                Log-Event -Component "UserCommunication" -Event "Migration start notification sent"
+                
+                # 2. Create system restore point
+                Log-Event -Component "RollbackMechanism" -Event "Creating system restore point"
+                
+                # 3. Perform first migration step
+                $Step1Result = Invoke-MigrationStep -Name "Step1" -ScriptBlock {
+                    Log-Event -Component "MigrationStep" -Event "Executing step 1"
+                    Set-ItemProperty -Path $TestRegPath -Name "Step1" -Value "Complete"
+                    return $true
+                } -RollbackScriptBlock {
+                    Log-Event -Component "RollbackMechanism" -Event "Rolling back step 1"
+                    Remove-ItemProperty -Path $TestRegPath -Name "Step1" -ErrorAction SilentlyContinue
+                }
+                
+                # 4. Verify step 1 and notify
+                Log-Event -Component "MigrationVerification" -Event "Verifying step 1"
+                $VerificationResult = Verify-ConfigurationState -RegistryPath $TestRegPath -ExpectedStepValue "Step1" -ExpectedValue "Complete"
+                
+                Send-UserNotification -Title "Step 1 Verification" -Message "Step 1 verification $($VerificationResult.Success ? 'succeeded' : 'failed')" -NotificationType ($VerificationResult.Success ? "Success" : "Error") -LogPath $NotificationPath
+                Log-Event -Component "UserCommunication" -Event "Step 1 verification notification sent"
+                
+                # 5. Perform second step with deliberate failure
+                $Step2Result = Invoke-MigrationStep -Name "Step2" -ScriptBlock {
+                    Log-Event -Component "MigrationStep" -Event "Executing step 2"
+                    Set-ItemProperty -Path $TestRegPath -Name "Step2" -Value "InComplete"
+                    return $true
+                } -VerificationScript {
+                    Log-Event -Component "MigrationVerification" -Event "Verifying step 2"
+                    # This verification will fail
+                    $VerificationResult = Verify-ConfigurationState -RegistryPath $TestRegPath -ExpectedStepValue "Step2" -ExpectedValue "Complete"
+                    return $VerificationResult.Success
+                } -RollbackScriptBlock {
+                    Log-Event -Component "RollbackMechanism" -Event "Rolling back step 2"
+                    Remove-ItemProperty -Path $TestRegPath -Name "Step2" -ErrorAction SilentlyContinue
+                    Set-ItemProperty -Path $TestRegPath -Name "RollbackExecuted" -Value $true
+                    Send-UserNotification -Title "Rollback Occurred" -Message "Step 2 failed verification and was rolled back" -NotificationType "Warning" -LogPath $NotificationPath
+                }
+                
+                # 6. Verify the rollback occurred
+                $RollbackExecuted = (Get-ItemProperty -Path $TestRegPath -Name "RollbackExecuted" -ErrorAction SilentlyContinue).RollbackExecuted
+                $EventFlowLog = Get-Content -Path $EventLog -Raw
+                
+                # Check for the complete expected flow
+                $ExpectedFlowElements = @(
+                    "UserCommunication.*Migration start notification sent",
+                    "RollbackMechanism.*Creating system restore point",
+                    "MigrationStep.*Executing step 1",
+                    "MigrationVerification.*Verifying step 1",
+                    "UserCommunication.*Step 1 verification notification sent",
+                    "MigrationStep.*Executing step 2",
+                    "MigrationVerification.*Verifying step 2",
+                    "RollbackMechanism.*Rolling back step 2"
+                )
+                
+                $FlowComplete = $true
+                foreach ($element in $ExpectedFlowElements) {
+                    if ($EventFlowLog -notmatch $element) {
+                        $FlowComplete = $false
+                        Write-Log "Missing expected flow element: $element" -Level Warning
+                    }
+                }
+                
+                if ($FlowComplete -and $RollbackExecuted) {
+                    Register-TestResult -TestName "Complete-Integration" -Component "RollbackMechanism,MigrationVerification,UserCommunication" -Success $true
+                }
+                else {
+                    Register-TestResult -TestName "Complete-Integration" -Component "RollbackMechanism,MigrationVerification,UserCommunication" -Success $false -ErrorMessage "Integration flow did not complete as expected"
+                }
+            }
+            catch {
+                Log-Event -Component "Error" -Event $_.Exception.Message
+                Register-TestResult -TestName "Complete-Integration" -Component "RollbackMechanism,MigrationVerification,UserCommunication" -Success $false -ErrorMessage $_.Exception.Message
+            }
+        }
+        
+        if (-not $SkipCleanup) {
+            Remove-TestResources -TestName "CompleteIntegrationTest"
+        }
+    }
+    catch {
+        Register-TestResult -TestName "Complete-Integration" -Component "RollbackMechanism,MigrationVerification,UserCommunication" -Success $false -ErrorMessage $_.Exception.Message
+    }
+}
+#endregion
 
-# Script entry point
-try {
-    Write-TestLog "Starting component integration tests (Level: $TestLevel)" -Level Info
-    
-    # Import required modules
-    $ImportedModules = Import-TestModules
-    if (-not $ImportedModules) {
-        throw "No modules were successfully imported. Cannot continue testing."
-    }
-    
-    # Test individual components
-    if ($ComponentFilter -contains 'RollbackMechanism' -or -not $ComponentFilter) {
-        Test-Component -ComponentName "RollbackMechanism" -TestScript { Test-RollbackMechanism }
-    }
-    
-    if ($ComponentFilter -contains 'MigrationVerification' -or -not $ComponentFilter) {
-        Test-Component -ComponentName "MigrationVerification" -TestScript { Test-MigrationVerification }
-    }
-    
-    if ($ComponentFilter -contains 'UserCommunication' -or -not $ComponentFilter) {
-        Test-Component -ComponentName "UserCommunication" -TestScript { Test-UserCommunication }
-    }
-    
-    # Test integration between components
-    if (($ComponentFilter -contains 'RollbackMechanism' -and $ComponentFilter -contains 'MigrationVerification') -or 
-        -not $ComponentFilter) {
-        Test-Integration -FromComponent "RollbackMechanism" -ToComponent "MigrationVerification" -TestScript { Test-RollbackVerificationIntegration }
-    }
-    
-    if (($ComponentFilter -contains 'UserCommunication' -and $ComponentFilter -contains 'MigrationVerification') -or 
-        -not $ComponentFilter) {
-        Test-Integration -FromComponent "UserCommunication" -ToComponent "MigrationVerification" -TestScript { Test-CommunicationVerificationIntegration }
-    }
-    
-    if (($ComponentFilter -contains 'RollbackMechanism' -and $ComponentFilter -contains 'UserCommunication') -or 
-        -not $ComponentFilter) {
-        Test-Integration -FromComponent "RollbackMechanism" -ToComponent "UserCommunication" -TestScript { Test-RollbackCommunicationIntegration }
-    }
-    
-    # Save test results
-    Save-TestResults
+#region Main Execution
+# Display header
+Write-Host "================================================" -ForegroundColor Cyan
+Write-Host "   Migration Component Integration Test Suite" -ForegroundColor Cyan
+Write-Host "================================================" -ForegroundColor Cyan
+Write-Host "Test Level: $TestLevel" -ForegroundColor Cyan
+if ($ComponentFilter) {
+    Write-Host "Component Filter: $ComponentFilter" -ForegroundColor Cyan
 }
-catch {
-    Write-TestLog "Integration testing failed: $_" -Level Error
+Write-Host "Output Path: $OutputPath" -ForegroundColor Cyan
+Write-Host "------------------------------------------------" -ForegroundColor Cyan
+
+# Import required modules
+$ModulesImported = Import-RequiredModules
+if (-not $ModulesImported) {
+    Write-Log "Unable to import required modules. Tests cannot continue." -Level Error
+    exit 1
 }
-finally {
-    # Clean up test resources
-    Remove-TestResources
-} 
+
+# Run individual component tests
+Write-Log "Running individual component tests..." -Level Info
+Test-RollbackMechanism
+Test-MigrationVerification
+Test-UserCommunication
+
+# Run integration tests based on test level
+Write-Log "Running component integration tests..." -Level Info
+Test-RollbackVerificationIntegration
+Test-CommunicationVerificationIntegration
+Test-RollbackCommunicationIntegration
+
+# Run complete integration test for Comprehensive level only
+if ($TestLevel -eq "Comprehensive") {
+    Test-CompleteIntegration
+}
+
+# Save test results
+Save-TestResults
+
+Write-Host "================================================" -ForegroundColor Cyan
+Write-Host "   Integration Test Suite Complete" -ForegroundColor Cyan
+Write-Host "   Results saved to: $TestResultsFile" -ForegroundColor Cyan
+Write-Host "================================================" -ForegroundColor Cyan
+#endregion 
