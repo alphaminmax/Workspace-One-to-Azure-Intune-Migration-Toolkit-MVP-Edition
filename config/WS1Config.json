@@ -1,0 +1,8 @@
+{
+    "EnrollmentServer": "https://ws1.example.com",
+    "IntuneIntegrationEnabled": true,
+    "LogLevel": "INFO",
+    "OrganizationName": "Example Corporation",
+    "HelpDeskPhoneNumber": "1-800-555-1234",
+    "HelpDeskEmail": "helpdesk@example.com"
+} 
