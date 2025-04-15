@@ -39,7 +39,7 @@ function Initialize-ScriptTesting {
     
     try {
         # Import the logging module
-        $loggingModulePath = Join-Path -Path $PSScriptRoot -ChildPath "LoggingModule.psm1"
+        $loggingModulePath = Join-Path -Path $PSScriptRoot -ChildPath "..\modules\LoggingModule.psm1"
         if (Test-Path -Path $loggingModulePath) {
             Import-Module $loggingModulePath -Force
             
@@ -73,7 +73,7 @@ function Initialize-ScriptTesting {
         }
     }
     catch {
-        Write-Error "Failed to initialize script testing environment: $_"
+        Write-Error "Failed to initialize script testing environment: ${_}"
         return $false
     }
 }
@@ -113,12 +113,12 @@ function Test-ScriptSyntax {
             
             # Add to test results
             $script:TestResults += [PSCustomObject]@{
-                ScriptName  = $scriptName
-                ScriptPath  = $ScriptPath
-                TestType    = "Syntax"
-                Result      = "Failed"
+                ScriptName = $scriptName
+                ScriptPath = $ScriptPath
+                TestType = "Syntax"
+                Result = "Failed"
                 ErrorDetail = $errorDetails
-                Timestamp   = Get-Date
+                Timestamp = Get-Date
                 Environment = Get-OSVersionInfo
             }
             
@@ -128,29 +128,30 @@ function Test-ScriptSyntax {
             
             # Add to test results
             $script:TestResults += [PSCustomObject]@{
-                ScriptName  = $scriptName
-                ScriptPath  = $ScriptPath
-                TestType    = "Syntax"
-                Result      = "Passed"
-                ErrorDetail = $null
-                Timestamp   = Get-Date
+                ScriptName = $scriptName
+                ScriptPath = $ScriptPath
+                TestType = "Syntax"
+                Result = "Success"
+                ErrorDetail = "No syntax errors detected"
+                Timestamp = Get-Date
                 Environment = Get-OSVersionInfo
             }
+            Write-LogMessage -Message "[$scriptName] Script syntax check completed successfully" -Level INFO
             
             return $true
         }
     } catch {
         $scriptName = Split-Path -Path $ScriptPath -Leaf
-        Write-LogMessage -Level ERROR -Message "Error testing syntax for $scriptName`: $_"
+        Write-LogMessage -Level ERROR -Message "Error testing syntax for $scriptName`: ${_}"
         
         # Add to test results
         $script:TestResults += [PSCustomObject]@{
-            ScriptName  = $scriptName
-            ScriptPath  = $ScriptPath
-            TestType    = "Syntax"
-            Result      = "Error"
+            ScriptName = $scriptName
+            ScriptPath = $ScriptPath
+            TestType = "Syntax"
+            Result = "Failed"
             ErrorDetail = $_.Exception.Message
-            Timestamp   = Get-Date
+            Timestamp = Get-Date
             Environment = Get-OSVersionInfo
         }
         
@@ -215,12 +216,12 @@ function Test-ScriptInitialization {
                 
                 # Add to test results
                 $script:TestResults += [PSCustomObject]@{
-                    ScriptName  = $scriptName
-                    ScriptPath  = $ScriptPath
-                    TestType    = "Initialization"
-                    Result      = "Failed"
+                    ScriptName = $scriptName
+                    ScriptPath = $ScriptPath
+                    TestType = "Initialization"
+                    Result = "Failed"
                     ErrorDetail = "Script initialization test timed out after 30 seconds"
-                    Timestamp   = Get-Date
+                    Timestamp = Get-Date
                     Environment = Get-OSVersionInfo
                 }
                 
@@ -240,12 +241,12 @@ function Test-ScriptInitialization {
                 
                 # Add to test results
                 $script:TestResults += [PSCustomObject]@{
-                    ScriptName  = $scriptName
-                    ScriptPath  = $ScriptPath
-                    TestType    = "Initialization"
-                    Result      = "Passed"
+                    ScriptName = $scriptName
+                    ScriptPath = $ScriptPath
+                    TestType = "Initialization"
+                    Result = "Passed"
                     ErrorDetail = $null
-                    Timestamp   = Get-Date
+                    Timestamp = Get-Date
                     Environment = Get-OSVersionInfo
                 }
                 
@@ -255,12 +256,12 @@ function Test-ScriptInitialization {
                 
                 # Add to test results
                 $script:TestResults += [PSCustomObject]@{
-                    ScriptName  = $scriptName
-                    ScriptPath  = $ScriptPath
-                    TestType    = "Initialization"
-                    Result      = "Failed"
+                    ScriptName = $scriptName
+                    ScriptPath = $ScriptPath
+                    TestType = "Initialization"
+                    Result = "Failed"
                     ErrorDetail = $errorOutput
-                    Timestamp   = Get-Date
+                    Timestamp = Get-Date
                     Environment = Get-OSVersionInfo
                 }
                 
@@ -274,16 +275,16 @@ function Test-ScriptInitialization {
         }
     } catch {
         $scriptName = Split-Path -Path $ScriptPath -Leaf
-        Write-LogMessage -Level ERROR -Message "Error testing initialization for $scriptName`: $_"
+        Write-LogMessage -Level ERROR -Message "Error testing initialization for $scriptName`: ${_}"
         
         # Add to test results
         $script:TestResults += [PSCustomObject]@{
-            ScriptName  = $scriptName
-            ScriptPath  = $ScriptPath
-            TestType    = "Initialization"
-            Result      = "Error"
+            ScriptName = $scriptName
+            ScriptPath = $ScriptPath
+            TestType = "Initialization"
+            Result = "Failed"
             ErrorDetail = $_.Exception.Message
-            Timestamp   = Get-Date
+            Timestamp = Get-Date
             Environment = Get-OSVersionInfo
         }
         
@@ -523,36 +524,28 @@ function New-TestReport {
         <div class="header">
             <h1>PowerShell Script Test Report</h1>
             <p>Generated on: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")</p>
-            <p>Environment: $(Get-OSVersionInfo)</p>
+            <p>Environment: $($env:COMPUTERNAME) - $(Get-OSVersionInfo)</p>
         </div>
         
         <h2>Test Summary</h2>
         <div class="summary">
             <div class="summary-box">
                 <h3>Total Scripts</h3>
-                <div class="summary-number">$totalScripts</div>
+                <div class="summary-number">$($totalScripts)</div>
             </div>
             <div class="summary-box">
                 <h3>Syntax Tests</h3>
-                <div class="summary-number">
-                    <span class="passed">$syntaxPassed Passed</span> / 
-                    <span class="failed">$syntaxFailed Failed</span>
-                </div>
-                <div>$([math]::Round($syntaxPassed / ($syntaxPassed + $syntaxFailed) * 100, 1))% Success Rate</div>
+                <div class="summary-number passed">$($syntaxPassed)</div> passed,
+                <div class="summary-number failed">$($syntaxFailed)</div> failed
             </div>
             <div class="summary-box">
                 <h3>Initialization Tests</h3>
-                <div class="summary-number">
-                    <span class="passed">$initPassed Passed</span> / 
-                    <span class="failed">$initFailed Failed</span>
-                </div>
-                <div>$([math]::Round($initPassed / ($initPassed + $initFailed) * 100, 1))% Success Rate</div>
+                <div class="summary-number passed">$($initPassed)</div> passed,
+                <div class="summary-number failed">$($initFailed)</div> failed
             </div>
             <div class="summary-box">
                 <h3>Overall Health</h3>
-                <div class="summary-number $healthClass">
-                    $healthPercentage%
-                </div>
+                <div class="summary-number $($healthClass)">$($healthPercentage)%</div>
             </div>
         </div>
         
@@ -575,7 +568,7 @@ function New-TestReport {
         foreach ($result in $TestResults) {
             $resultClass = if ($result.Result -eq "Passed") { "passed" } else { "failed" }
             $errorDetails = if ($result.ErrorDetail) { 
-                "<div class='error-details'>$($result.ErrorDetail -replace '<', '&lt;' -replace '>', '&gt;' -replace "`n", "<br>")</div>" 
+                "<div class='error-details'>" + ($result.ErrorDetail -replace '<', '&lt;' -replace '>', '&gt;' -replace "`n", "<br>") + "</div>" 
             } else { 
                 "None" 
             }
@@ -584,7 +577,7 @@ function New-TestReport {
                 <tr>
                     <td>$($result.ScriptName)</td>
                     <td>$($result.TestType)</td>
-                    <td class="$resultClass">$($result.Result)</td>
+                    <td class='$resultClass'>$($result.Result)</td>
                     <td>$($result.Environment)</td>
                     <td>$($result.Timestamp.ToString("yyyy-MM-dd HH:mm:ss"))</td>
                     <td>$errorDetails</td>
@@ -608,7 +601,7 @@ function New-TestReport {
         if ($failedScripts.Count -gt 0) {
             $htmlContent += "                <li>Review and fix the following scripts that failed tests:<ul>"
             foreach ($script in $failedScripts) {
-                $htmlContent += "                    <li><strong>$script</strong></li>"
+                $htmlContent += "                    <li><strong>$($script)</strong></li>"
             }
             $htmlContent += "                </ul></li>"
         }
@@ -622,7 +615,7 @@ function New-TestReport {
         </div>
         
         <div class="footer">
-            <p>Generated with TestScripts.ps1 version 2.0 | Windows 10/11 Script Validation Tool</p>
+            <p>Report generated on: $((Get-Date).ToString("yyyy-MM-dd HH:mm:ss")) | $($totalScripts) scripts tested | PowerShell $($PSVersionTable.PSVersion.ToString())</p>
         </div>
     </div>
 </body>
@@ -636,7 +629,7 @@ function New-TestReport {
         return $reportPath
     }
     catch {
-        Write-LogMessage -Level ERROR -Message "Failed to generate test report: $_"
+        Write-LogMessage -Level ERROR -Message "Failed to generate test report: ${_}"
         return $null
     }
 }
@@ -686,8 +679,8 @@ try {
     return $reportPath
 }
 catch {
-    Write-LogMessage -Level ERROR -Message "Script testing failed: $_"
-    Write-Host "Script testing failed: $_" -ForegroundColor Red
+    Write-LogMessage -Level ERROR -Message "Script testing failed: ${_}"
+    Write-Host "Script testing failed: ${_}" -ForegroundColor Red
     return $null
 }
 finally {

@@ -122,7 +122,7 @@ try {
     
     exit 0
 } catch {
-    Write-Error "Failed to deploy Workspace One tools: `$_"
+    Write-Error "Failed to deploy Workspace One tools: ${_}"
     exit 1
 }
 "@
@@ -190,7 +190,7 @@ try {
     
     exit 0
 } catch {
-    Write-Error "Failed to deploy Workspace One tools: `$_"
+    Write-Error "Failed to deploy Workspace One tools: ${_}"
     exit 1
 }
 "@
@@ -219,7 +219,7 @@ try {
     
     exit 0
 } catch {
-    Write-Error "Failed to uninstall Workspace One tools: `$_"
+    Write-Error "Failed to uninstall Workspace One tools: ${_}"
     exit 1
 }
 "@
@@ -286,7 +286,7 @@ try {
     
     exit 0
 } catch {
-    Write-Error "Failed to deploy Workspace One tools: `$_"
+    Write-Error "Failed to deploy Workspace One tools: ${_}"
     exit 1
 }
 "@

@@ -61,7 +61,7 @@ function Write-TestResult {
     $statusColor = if ($Success) { "Green" } else { "Red" }
     
     Write-Host "$statusIcon " -ForegroundColor $statusColor -NoNewline
-    Write-Host "$TestName: " -NoNewline
+    Write-Host "${TestName}: " -NoNewline
     Write-Host $Message
 }
 
@@ -87,8 +87,8 @@ try {
         $results.Recommendations += "Upgrade to a supported Windows 10/11 version"
     }
 } catch {
-    Write-TestResult -TestName "Windows Version" -Success $false -Message "Error: $_"
-    $results.SystemIssues += "Failed to determine Windows version: $_"
+    Write-TestResult -TestName "Windows Version" -Success $false -Message "Error: ${_}"
+    $results.SystemIssues += "Failed to determine Windows version: ${_}"
 }
 
 # Check PowerShell version
@@ -104,8 +104,8 @@ try {
         $results.Recommendations += "Upgrade PowerShell to version 5.1 or higher"
     }
 } catch {
-    Write-TestResult -TestName "PowerShell Version" -Success $false -Message "Error: $_"
-    $results.SystemIssues += "Failed to determine PowerShell version: $_"
+    Write-TestResult -TestName "PowerShell Version" -Success $false -Message "Error: ${_}"
+    $results.SystemIssues += "Failed to determine PowerShell version: ${_}"
 }
 
 # Check admin rights
@@ -122,8 +122,8 @@ try {
         $results.Recommendations += "Run with administrator privileges for full enrollment functionality"
     }
 } catch {
-    Write-TestResult -TestName "Admin Rights" -Success $false -Message "Error: $_"
-    $results.SystemIssues += "Failed to check administrator rights: $_"
+    Write-TestResult -TestName "Admin Rights" -Success $false -Message "Error: ${_}"
+    $results.SystemIssues += "Failed to check administrator rights: ${_}"
 }
 
 # Check network connectivity
@@ -137,8 +137,8 @@ try {
         $results.Recommendations += "Connect to the internet to enable enrollment"
     }
 } catch {
-    Write-TestResult -TestName "Internet Connectivity" -Success $false -Message "Error: $_"
-    $results.SystemIssues += "Failed to check network connectivity: $_"
+    Write-TestResult -TestName "Internet Connectivity" -Success $false -Message "Error: ${_}"
+    $results.SystemIssues += "Failed to check network connectivity: ${_}"
 }
 
 # Check enrollment server connectivity
@@ -156,8 +156,8 @@ try {
         $results.Recommendations += "Verify enrollment server URL and network connectivity"
     }
 } catch {
-    Write-TestResult -TestName "Enrollment Server" -Success $false -Message "Error: $_"
-    $results.SystemIssues += "Failed to check enrollment server: $_"
+    Write-TestResult -TestName "Enrollment Server" -Success $false -Message "Error: ${_}"
+    $results.SystemIssues += "Failed to check enrollment server: ${_}"
 }
 
 # Check MDM enrollment status
@@ -174,8 +174,8 @@ try {
         Write-TestResult -TestName "MDM Status" -Success $true -Message $results.MDMEnrollmentStatus
     }
 } catch {
-    Write-TestResult -TestName "MDM Status" -Success $false -Message "Error: $_"
-    $results.SystemIssues += "Failed to check MDM enrollment status: $_"
+    Write-TestResult -TestName "MDM Status" -Success $false -Message "Error: ${_}"
+    $results.SystemIssues += "Failed to check MDM enrollment status: ${_}"
 }
 
 # Check registry permissions
@@ -196,8 +196,8 @@ try {
     Write-TestResult -TestName "Registry Permissions" -Success $true -Message "Success"
 } catch {
     $results.RegistryPermissions = $false
-    Write-TestResult -TestName "Registry Permissions" -Success $false -Message "Error: $_"
-    $results.SystemIssues += "Insufficient registry permissions: $_"
+    Write-TestResult -TestName "Registry Permissions" -Success $false -Message "Error: ${_}"
+    $results.SystemIssues += "Insufficient registry permissions: ${_}"
     $results.Recommendations += "Ensure user has administrative permissions to HKLM registry hive"
 }
 
@@ -208,8 +208,8 @@ try {
     Write-TestResult -TestName "WMI Access" -Success $true -Message "Success"
 } catch {
     $results.WMIAccess = $false
-    Write-TestResult -TestName "WMI Access" -Success $false -Message "Error: $_"
-    $results.SystemIssues += "Insufficient WMI access: $_"
+    Write-TestResult -TestName "WMI Access" -Success $false -Message "Error: ${_}"
+    $results.SystemIssues += "Insufficient WMI access: ${_}"
     $results.Recommendations += "Verify WMI permissions and service status"
 }
 
@@ -471,7 +471,8 @@ if ($GenerateReport) {
         
         Write-Host "`nEnvironment readiness report generated at: $ReportPath" -ForegroundColor Cyan
     } catch {
-        Write-Error "Failed to generate report: $_"
+        Write-Error "Failed to generate report: ${_}"
+        return $false
     }
 }
 
@@ -491,4 +492,4 @@ if ($overallReady) {
             Write-Host "- $recommendation" -ForegroundColor White
         }
     }
-} 
+}

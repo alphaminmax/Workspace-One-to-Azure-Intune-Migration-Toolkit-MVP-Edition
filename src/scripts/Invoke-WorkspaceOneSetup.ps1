@@ -43,54 +43,25 @@ function Initialize-Environment {
     param()
     
     try {
-        # Create log directory
-        if (-not (Test-Path -Path $logPath -PathType Container)) {
+        # Create log directory if needed
+        if (-not (Test-Path -Path $logPath)) {
             New-Item -Path $logPath -ItemType Directory -Force | Out-Null
-            Write-Verbose "Created log directory: $logPath"
         }
         
-        # Start transcript
-        $transcriptPath = Join-Path -Path $logPath -ChildPath "Setup_Transcript.log"
-        Start-Transcript -Path $transcriptPath -Force
+        # Initialize logging
+        Import-Module -Name "$PSScriptRoot\..\modules\LoggingModule.psm1" -Force
+        Initialize-Logging -LogPath $logPath -LogFileName "WS1Setup_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
         
-        Write-Host "=== Workspace One Setup and Script Testing ===" -ForegroundColor Cyan
-        Write-Host "Started: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Cyan
-        Write-Host "Log path: $logPath" -ForegroundColor Cyan
-        Write-Host "=============================================" -ForegroundColor Cyan
+        Write-LogMessage -Message "Workspace One Setup starting..." -Level INFO
+        Write-LogMessage -Message "Parameters: Mode=$Mode, EnrollmentServer=$EnrollmentServer, OrgName=$OrgName, SkipScriptTests=$SkipScriptTests" -Level INFO
         
-        # Check operating system
-        $osInfo = Get-CimInstance -ClassName Win32_OperatingSystem
-        $windowsVersion = switch -Regex ($osInfo.BuildNumber) {
-            '^10\d{3}$' { "Windows 10" }
-            '^22[0-9]{3}$' { "Windows 11" }
-            default { "Windows (Build $($osInfo.BuildNumber))" }
-        }
-        
-        Write-Host "Operating System: $windowsVersion $(($osInfo.Caption -replace 'Microsoft ', ''))" -ForegroundColor Yellow
-        
-        # Check PowerShell version
-        $psVersion = $PSVersionTable.PSVersion
-        Write-Host "PowerShell Version: $($psVersion.Major).$($psVersion.Minor).$($psVersion.Build)" -ForegroundColor Yellow
-        
-        # Check admin rights
-        $currentIdentity = [Security.Principal.WindowsIdentity]::GetCurrent()
-        $principal = New-Object Security.Principal.WindowsPrincipal($currentIdentity)
-        $adminRole = [Security.Principal.WindowsBuiltInRole]::Administrator
-        $isAdmin = $principal.IsInRole($adminRole)
-        
-        Write-Host "Running as Administrator: $isAdmin" -ForegroundColor Yellow
-        
-        if (-not $isAdmin) {
-            Write-Warning "Some operations may require administrative privileges."
-        }
+        # Determine working directory
+        $workingDirectory = $PSScriptRoot
+        Write-LogMessage -Message "Working directory: $workingDirectory" -Level INFO
         
         return $true
-    }
-    catch {
-        Write-Error "Failed to initialize environment: $_"
-        if ($transcriptStarted) {
-            Stop-Transcript
-        }
+    } catch {
+        Write-Error "Failed to initialize environment: ${_}"
         return $false
     }
 }
@@ -122,7 +93,7 @@ function Test-ScriptsEnvironment {
         }
     }
     catch {
-        Write-Error "Error during script testing: $_"
+        Write-Error "Error during script testing: ${_}"
         return $false
     }
 }
@@ -159,7 +130,7 @@ function Test-EnrollmentReadiness {
         }
     }
     catch {
-        Write-Error "Error testing enrollment readiness: $_"
+        Write-Error "Error testing enrollment readiness: ${_}"
         return $false
     }
 }
@@ -198,7 +169,7 @@ function Start-WorkspaceOneEnrollment {
         }
     }
     catch {
-        Write-Error "Error during enrollment: $_"
+        Write-Error "Error during enrollment: ${_}"
         return $false
     }
 }
@@ -237,7 +208,7 @@ try {
     Write-Host "Completed: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Cyan
 }
 catch {
-    Write-Error "Unhandled error in setup process: $_"
+    Write-Error "Unhandled error in setup process: ${_}"
     Exit 1
 }
 finally {
