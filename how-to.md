@@ -544,3 +544,17 @@ After migration is complete, you'll enjoy several benefits:
 - **Simplified Updates**: More reliable software updates
 
 Thank you for your cooperation during this important upgrade to your device management system! 
+
+---
+
+## Legal Information
+
+### Copyright
+
+© 2025 Crayon. All Rights Reserved.
+
+### Data Loss Disclaimer
+
+**IMPORTANT**: Migrations between management systems involve inherent risks. Crayon specifically disclaims any responsibility for data loss, system instability, or service interruptions that may occur during or after the migration process. Users must maintain complete backups prior to migration.
+
+This software is provided under a fair use license for Crayon customers and authorized partners. See [LICENSE.md](LICENSE.md) for complete terms and conditions. 

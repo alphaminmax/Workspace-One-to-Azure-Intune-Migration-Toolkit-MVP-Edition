@@ -2,6 +2,12 @@
 ################################################################################################################################
 # Written by Jared Griego | Crayon | 4.16.2025 | Rev 1.0 | jared.griego@crayon.com                                              #
 #                                                                                                                              #
+# © 2025 Crayon. All Rights Reserved.                                                                                          #
+#                                                                                                                              #
+# DISCLAIMER: This script is provided AS IS without warranty of any kind. Crayon disclaims all implied warranties               #
+# including, without limitation, any implied warranties of merchantability or of fitness for a particular purpose.             #
+# The entire risk arising out of the use or performance of this script remains with you.                                       #
+#                                                                                                                              #
 # Automates the testing of PowerShell scripts and provides a GUI wizard for Workspace One                               #
 # PowerShell 5.1 x32/x64                                                                                                       #
 #                                                                                                                              #

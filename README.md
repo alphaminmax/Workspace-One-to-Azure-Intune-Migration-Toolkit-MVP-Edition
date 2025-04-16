@@ -606,3 +606,15 @@ Comprehensive reporting system for migration status and analytics:
 - **Migration Analytics**: Detailed metrics on migration success rates and performance
 - **Component Analysis**: Success rates by migration component for troubleshooting
 - **CSV Data Export**: Raw data exports for custom analysis
+
+## Legal Information
+
+### Copyright
+
+© 2025 Crayon. All Rights Reserved.
+
+### Disclaimer
+
+**DATA LOSS DISCLAIMER**: Migrations between management systems involve inherent risks. Crayon specifically disclaims any responsibility for data loss, system instability, or service interruptions that may occur during or after the migration process. Users must maintain complete backups prior to migration.
+
+See [LICENSE.md](LICENSE.md) for complete terms and conditions.
