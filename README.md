@@ -38,7 +38,7 @@ This toolkit provides:
 The project is organized into the following directories:
 
 ```
-ws1-to-azure-migration/
+Workspace-One-to-Azure-Intune-Migration-Toolkit-MVP-Edition/
 ├── src/
 │   ├── modules/                      # PowerShell modules
 │   │   ├── LoggingModule.psm1        # Centralized logging
@@ -422,14 +422,14 @@ For different environments (dev, test, prod), we recommend:
 1. **Download the Repository**:
    ```powershell
    # Via Git
-   git clone https://github.com/your-org/ws1-to-azure-migration.git
+   git clone https://github.com/alphaminmax/Workspace-One-to-Azure-Intune-Migration-Toolkit-MVP-Edition.git
    
    # Or download and extract the ZIP file manually
    ```
 
 2. **Navigate to Project Directory**:
    ```powershell
-   cd path\to\ws1-to-azure-migration
+   cd path\to\Workspace-One-to-Azure-Intune-Migration-Toolkit-MVP-Edition
    ```
 
 3. **Configure Environment**:

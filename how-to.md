@@ -64,7 +64,7 @@ The toolkit follows a modular architecture with these key components:
 
 1. Clone or extract the toolkit to a local directory:
    ```powershell
-   git clone https://github.com/your-org/ws1-to-azure-migration.git
+   git clone https://github.com/alphaminmax/Workspace-One-to-Azure-Intune-Migration-Toolkit-MVP-Edition.git
    ```
 
 2. Configure settings using the .env file (recommended):
