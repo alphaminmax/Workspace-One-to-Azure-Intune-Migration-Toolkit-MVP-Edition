@@ -363,7 +363,7 @@ function Send-MigrationNotification {
             
             Send-MailMessage @emailParams
             $successCount++
-            Write-Log -Message "Email notification sent to $UserEmail: $title" -Level Information
+            Write-Log -Message "Email notification sent to $($UserEmail): $title" -Level Information
         }
         catch {
             Write-Log -Message "Failed to send email notification: $_" -Level Error

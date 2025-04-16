@@ -330,7 +330,7 @@ function Start-DeviceMigration {
         }
     }
     catch {
-        Write-Log -Message "Error during migration for device $DeviceName: $_" -Level Error
+        Write-Log -Message "Error during migration for device $($DeviceName): $_" -Level Error
         
         $summaryData.DeviceStatus[$DeviceName].Status = "Error"
         $summaryData.DeviceStatus[$DeviceName].EndTime = Get-Date
@@ -372,7 +372,7 @@ function New-MigrationSummaryReport {
         }
         
         $reason = if ($status.Reason) { $status.Reason } else { "" }
-        $error = if ($status.Error) { $status.Error } else { "" }
+        $errorMessage = if ($status.Error) { $status.Error } else { "" }
         
         $deviceRows += @"
         <tr>
@@ -381,7 +381,7 @@ function New-MigrationSummaryReport {
             <td>$($status.StartTime)</td>
             <td>$deviceDuration</td>
             <td>$reason</td>
-            <td>$error</td>
+            <td>$errorMessage</td>
             <td><a href="file://$($status.LogPath)" target="_blank">Logs</a></td>
         </tr>
 "@
