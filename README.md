@@ -40,13 +40,18 @@ ws1-to-azure-migration/
 ├── src/
 │   ├── modules/                      # PowerShell modules
 │   │   ├── LoggingModule.psm1        # Centralized logging
+│   │   ├── ValidationModule.psm1     # Environment and migration validation
 │   │   ├── PrivilegeManagement.psm1  # Privilege elevation without admin rights
 │   │   ├── ProfileTransfer.psm1      # User profile migration
 │   │   ├── GraphAPIIntegration.psm1  # Microsoft Graph API integration
+│   │   ├── UserCommunicationFramework.psm1  # User notifications and guides
+│   │   ├── RollbackMechanism.psm1    # Migration recovery and rollback
 │   │   └── WorkspaceOneWizard.psm1   # GUI interface (supports silent mode)
 │   ├── scripts/                      # PowerShell scripts
 │   │   ├── Invoke-WorkspaceOneSetup.ps1
 │   │   ├── Test-WS1Environment.ps1
+│   │   ├── Test-MigratedDevice.ps1
+│   │   ├── Invoke-MigrationOrchestrator.ps1
 │   │   └── TestScripts.ps1
 │   └── tools/                        # Additional tools
 │       ├── Test-MigrationConnectivity.ps1
@@ -87,6 +92,17 @@ Implements a simple rollback capability for failed migrations:
 - **System Restore Points**: Creates restore points before migration
 - **Configuration Backup**: Preserves Workspace ONE configuration
 - **Registry Backup**: Stores critical registry keys
+
+### User Communication Framework
+
+Provides comprehensive communication with end users during the migration process:
+
+- **Multi-channel Notifications**: Support for Windows toast notifications, email, and Microsoft Teams
+- **Migration Progress Display**: Visual and notification-based progress updates
+- **User Guides**: HTML-based documentation for migration steps and procedures
+- **Feedback Collection**: Mechanisms to gather user feedback on migration experience
+- **Customizable Branding**: Company-specific branding for all user communications
+- **Silent Operation Support**: Operates in silent mode for unattended migrations
 
 ### Logging
 
@@ -411,149 +427,3 @@ The solution supports fully unattended operation for mass deployment:
 # Example for mass deployment
 .\src\scripts\Invoke-WorkspaceOneSetup.ps1 -Silent -LogPath "C:\ProgramData\WS1Migration\Logs" -ConfigPath "\\server\share\config.json" -AzureTenantId "tenant-id"
 ```
-
-## Troubleshooting Guide
-
-### Log File Locations
-
-All toolkit components generate detailed logs to help with troubleshooting:
-
-- **Script Testing Logs**: `C:\Temp\Logs\ScriptTests_[timestamp]\ScriptTesting_[timestamp].log`
-- **Migration Logs**: `C:\Temp\WS1_Migration\Logs\Migration_[timestamp].log`
-- **Setup Logs**: `C:\Temp\Logs\WS1_Setup_[timestamp]\Setup_[timestamp].log`
-- **Environment Test Logs**: `C:\Temp\Logs\EnvTest_[timestamp].log`
-- **Deployment Logs**: `C:\Temp\Logs\Deployment_[timestamp].log`
-- **Privilege Operation Logs**: `C:\Temp\Logs\PrivilegeOps_[timestamp].log`
-
-### Common Issues and Solutions
-
-#### Issue 1: Migration Script Failures
-- **Symptoms**: Migration scripts fail during execution
-- **Troubleshooting Steps**:
-  1. Check log files for specific error messages
-  2. Verify PowerShell version compatibility
-  3. Ensure all required modules are available
-  4. Check for network connectivity issues
-  5. Verify administrative privileges
-
-#### Issue 2: Connectivity Problems
-- **Symptoms**: Unable to connect to Workspace One or Azure endpoints
-- **Troubleshooting Steps**:
-  1. Run `Test-MigrationConnectivity.ps1` to diagnose network issues
-  2. Verify server URLs are correct in configuration
-  3. Check corporate firewall settings
-  4. Test basic network connectivity with ping/traceroute
-  5. Verify DNS resolution is working properly
-
-#### Issue 3: Azure AD Join Failures
-- **Symptoms**: Device fails to join Azure AD during migration
-- **Troubleshooting Steps**:
-  1. Check Azure AD credentials and permissions
-  2. Verify network connectivity to Azure AD endpoints
-  3. Check for existing device records in Azure AD
-  4. Review device compatibility with Azure AD join
-  5. Verify time synchronization on the device
-
-#### Issue 4: User Profile Migration Issues
-- **Symptoms**: User profile data not migrating correctly
-- **Troubleshooting Steps**:
-  1. Check permissions on user profile folders
-  2. Verify user SID capture in logs
-  3. Check disk space for profile migration
-  4. Review encryption status of user files
-  5. Manually copy user data if necessary
-
-#### Issue 5: Privilege Elevation Failures
-- **Symptoms**: Operations requiring admin rights fail
-- **Troubleshooting Steps**:
-  1. Check privilege elevation logs
-  2. Verify task scheduler service is running
-  3. Check local security policy settings
-  4. Verify temporary admin account creation
-  5. Review UAC settings on the device
-
-## Integration with Endpoint Management
-
-### Intune Deployment
-
-1. **Package Creation**:
-   ```powershell
-   .\deployment\Deploy-WS1EnrollmentTools.ps1 -DeploymentType Intune -OutputPath "C:\Temp\IntunePackage"
-   ```
-
-2. **Intune Upload Process**:
-   - Navigate to Intune portal > Apps > Windows apps
-   - Add a new Windows app (Win32)
-   - Upload the generated .intunewin file
-   - Configure detection rules as specified in the generated instructions
-   - Set the deployment to run in the user context (important!)
-   - Assign to appropriate user/device groups
-
-### SCCM/MECM Deployment
-
-1. **Package Creation**:
-   ```powershell
-   .\deployment\Deploy-WS1EnrollmentTools.ps1 -DeploymentType SCCM -OutputPath "C:\Temp\SCCMPackage"
-   ```
-
-2. **SCCM Deployment Process**:
-   - In SCCM console, go to Software Library > Application Management > Applications
-   - Create a new application with the generated package
-   - Create deployment types using the provided installation/uninstallation commands
-   - Set the deployment to run whether or not a user is logged in
-   - Configure detection methods as outlined in the generated instructions
-   - Deploy to appropriate collections
-
-### GPO Deployment
-
-1. **Package Creation**:
-   ```powershell
-   .\deployment\Deploy-WS1EnrollmentTools.ps1 -DeploymentType GPO -OutputPath "C:\Temp\GPOPackage"
-   ```
-
-2. **GPO Configuration Process**:
-   - Copy the generated files to a network share accessible by target computers
-   - Create a new GPO in Group Policy Management Console
-   - Edit the GPO and navigate to Computer Configuration > Policies > Windows Settings > Scripts
-   - Configure startup or logon scripts using the generated GPOScript.ps1
-   - Link the GPO to appropriate OUs containing target computers
-
-## Security Considerations
-
-The migration toolkit implements several security measures:
-
-1. **Secure Credential Handling**
-   - No plaintext passwords stored
-   - Credentials encrypted during transmission
-   - Uses Windows Data Protection API for local credential storage
-
-2. **Temporary Account Security**
-   - Complex random passwords for temporary accounts
-   - Limited lifetime for all admin accounts
-   - Audit logging of account creation and deletion
-
-3. **Principle of Least Privilege**
-   - Elevation only for specific operations that require it
-   - No permanent elevation
-   - Operations run in user context whenever possible
-
-4. **Secure Cleanup**
-   - All temporary admin accounts removed
-   - Scheduled tasks removed after use
-   - Temporary files securely deleted
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Acknowledgments
-
-- Developed for modern Windows 10/11 environments
-- Compatible with Workspace One unenrollment and Azure AD/Intune enrollment
-- Designed for enterprise migration scenarios
-
-

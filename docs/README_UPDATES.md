@@ -128,4 +128,17 @@ Based on the validation results, consider making the following improvements:
 
 ## Backup Files
 
-During the enhancement process, backup files were created for all modified scripts with the `.bak` extension. These can be used for reference or to revert changes if needed. 
+During the enhancement process, backup files were created for all modified scripts with the `.bak` extension. These can be used for reference or to revert changes if needed.
+
+## Latest Documentation Updates
+
+### 2023-04-16: Comprehensive Documentation Update
+
+- Added UserCommunicationFramework module to project structure in README.md
+- Added RollbackMechanism and ValidationModule modules to project structure for completeness
+- Added dedicated section about User Communication Framework functionality in README.md
+- Added Test-MigratedDevice.ps1 and Invoke-MigrationOrchestrator.ps1 to scripts section
+- Ensured consistent documentation across all files
+- Updated MVP-Migration-Guide.md to reference UserCommunicationFramework
+
+### Previous Updates 
