@@ -203,8 +203,6 @@ After successfully implementing the MVP toolkit, consider these enhancements:
 
 - **Documentation**: Full documentation is available in the `/docs` folder
 - **Issue Tracking**: Report issues via the project's GitHub Issues
-- **Community Forum**: Join discussions at https://community.example.com/ws1migration
-- **Email Support**: mvp-support@example.com
 
 ---
 
