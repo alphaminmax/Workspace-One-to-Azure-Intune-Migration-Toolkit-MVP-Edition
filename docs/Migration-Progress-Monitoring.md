@@ -1,3 +1,5 @@
+![Crayon Logo](../assests/img/Crayon-Logo-RGB-Negative.svg)
+
 # Migration Progress Monitoring
 
 This document outlines the monitoring capabilities for the Workspace ONE to Azure/Intune migration process.

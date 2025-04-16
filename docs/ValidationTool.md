@@ -1,3 +1,5 @@
+![Crayon Logo](../assests/img/Crayon-Logo-RGB-Negative.svg)
+
 # Windows 10/11 Script Validation Tool
 
 ## Overview

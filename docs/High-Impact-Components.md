@@ -1,3 +1,5 @@
+![Crayon Logo](../assests/img/Crayon-Logo-RGB-Negative.svg)
+
 # High-Impact Components
 
 This document outlines the components that have the highest impact on the success of the Workspace ONE to Azure/Intune migration process. These components significantly influence the migration outcome and user experience.

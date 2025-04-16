@@ -1,3 +1,5 @@
+![Crayon Logo](../assests/img/Crayon-Logo-RGB-Negative.svg)
+
 # Reasonable Effort Components
 
 This document outlines components that deliver substantial value to the Workspace ONE to Azure/Intune migration project while requiring reasonable implementation effort.

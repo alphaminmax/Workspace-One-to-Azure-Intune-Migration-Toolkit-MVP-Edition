@@ -1,3 +1,5 @@
+![Crayon Logo](../assests/img/Crayon-Logo-RGB-Negative.svg)
+
 # Integration Framework for Workspace One to Azure/Intune Migration
 
 This document provides an overview of the integration framework for the Workspace One to Azure/Intune migration solution, explaining how all high-priority components work together to ensure a reliable, secure, and efficient migration process.

@@ -1,3 +1,5 @@
+![Crayon Logo](../assests/img/Crayon-Logo-RGB-Negative.svg)
+
 # MVP Migration Toolkit - Quick Start Guide
 
 ## Overview

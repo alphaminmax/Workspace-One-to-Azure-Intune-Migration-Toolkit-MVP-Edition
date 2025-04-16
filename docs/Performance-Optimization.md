@@ -1,3 +1,5 @@
+![Crayon Logo](../assests/img/Crayon-Logo-RGB-Negative.svg)
+
 # Performance Optimization Guide
 
 This document provides strategies and best practices for optimizing the performance of the Workspace ONE to Azure/Intune migration process.

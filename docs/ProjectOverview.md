@@ -1,3 +1,5 @@
+![Crayon Logo](../assests/img/Crayon-Logo-RGB-Negative.svg)
+
 # Workspace ONE Enrollment Toolkit - Project Overview
 
 ## Key Components

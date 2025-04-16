@@ -1,3 +1,5 @@
+![Crayon Logo](../assests/img/Crayon-Logo-RGB-Negative.svg)
+
 # Azure Key Vault Integration
 
 This document describes how to integrate the Workspace ONE to Azure/Intune Migration Toolkit with Azure Key Vault for secure credential management.

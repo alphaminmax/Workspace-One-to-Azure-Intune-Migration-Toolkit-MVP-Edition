@@ -1,3 +1,5 @@
+![Crayon Logo](../assests/img/Crayon-Logo-RGB-Negative.svg)
+
 # Workspace One to Azure Migration Tools
 
 This document provides details about the tools developed to facilitate the migration from VMware Workspace One to Microsoft Azure.

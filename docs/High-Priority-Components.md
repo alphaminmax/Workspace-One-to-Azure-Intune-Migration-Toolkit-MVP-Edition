@@ -1,3 +1,5 @@
+![Crayon Logo](../assests/img/Crayon-Logo-RGB-Negative.svg)
+
 # High-Priority Migration Components
 
 This document outlines the high-priority components for the Workspace One to Azure/Intune migration project. These components are essential for ensuring a successful, reliable migration process with minimal disruption to end users.

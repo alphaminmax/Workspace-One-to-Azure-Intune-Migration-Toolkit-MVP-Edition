@@ -1,3 +1,5 @@
+![Crayon Logo](../assests/img/Crayon-Logo-RGB-Negative.svg)
+
 # Secure Credential Handling in Migration Toolkit
 
 This documentation provides guidance on how to securely manage credentials and secrets in the Workspace ONE to Azure/Intune Migration Toolkit using the SecureCredentialProvider module.

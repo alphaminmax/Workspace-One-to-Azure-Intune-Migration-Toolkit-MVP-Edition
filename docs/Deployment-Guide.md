@@ -1,3 +1,5 @@
+![Crayon Logo](../assests/img/Crayon-Logo-RGB-Negative.svg)
+
 # Deployment Guide: Workspace ONE to Azure/Intune Migration Solution
 
 This guide provides detailed instructions for deploying the Workspace ONE to Azure/Intune migration solution in your environment.

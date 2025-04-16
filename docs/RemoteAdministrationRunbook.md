@@ -1,3 +1,5 @@
+![Crayon Logo](../assests/img/Crayon-Logo-RGB-Negative.svg)
+
 # Remote Administration Runbook: WS1 to Azure/Intune Migration Toolkit
 
 ## 1. Overview

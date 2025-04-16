@@ -1,3 +1,5 @@
+![Crayon Logo](../assests/img/Crayon-Logo-RGB-Negative.svg)
+
 # Rollback Mechanism for WS1 to Azure Migration
 
 ## Overview

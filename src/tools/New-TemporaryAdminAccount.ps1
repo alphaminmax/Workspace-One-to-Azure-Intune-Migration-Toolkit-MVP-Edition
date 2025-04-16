@@ -1,5 +1,5 @@
 ################################################################################################################################
-# Written by Jared Griego | Crayon | 4.15.2025 | Rev 1.0 |jared.griego@crayon.com                                          #
+# Written by Jared Griego | Crayon | 4.15.2025 | Rev 1.0 |jared.griego@crayon.com                                              #
 #                                                                                                                              #
 # Azure PowerShell Script to allow migration from Workspace One to Azure Intune via Auto-enrollment                            #
 # PowerShell 5.1 x32/x64                                                                                                       #

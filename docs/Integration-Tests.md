@@ -1,3 +1,5 @@
+![Crayon Logo](../assests/img/Crayon-Logo-RGB-Negative.svg)
+
 # Integration Tests for Migration Components
 
 This document details the integration testing framework for high-priority components of the Workspace ONE to Azure/Intune migration project.

@@ -1,3 +1,21 @@
+################################################################################################################################
+# Written by Jared Griego | Crayon | 4.15.2025 | Rev 1.0 |jared.griego@crayon.com                                              #
+#                                                                                                                              #
+# Azure PowerShell Script to allow migration from Workspace One to Azure Intune via Auto-enrollment                            #
+# PowerShell 5.1 x32/x64                                                                                                       #
+#                                                                                                                              #
+################################################################################################################################
+
+################################################################################################################################
+#     ______ .______          ___   ____    ____  ______   .__   __.     __    __       _______.     ___                       #
+#    /      ||   _  \        /   \  \   \  /   / /  __  \  |  \ |  |    |  |  |  |     /       |    /   \                      #
+#   |  ,----'|  |_)  |      /  ^  \  \   \/   / |  |  |  | |   \|  |    |  |  |  |    |   (----`   /  ^  \                     #
+#   |  |     |      /      /  /_\  \  \_    _/  |  |  |  | |  . `  |    |  |  |  |     \   \      /  /_\  \                    #
+#   |  `----.|  |\  \----./  _____  \   |  |    |  `--'  | |  |\   |    |  `--'  | .----)   |    /  _____  \                   #
+#    \______|| _| `._____/__/     \__\  |__|     \______/  |__| \__|     \______/  |_______/    /__/     \__\                  #
+#                                                                                                                              #
+################################################################################################################################
+
 #Requires -Version 5.1
 
 <#
@@ -73,6 +91,10 @@ function Initialize-MigrationAnalytics {
                 AverageTime = 0
                 FirstMigration = $null
                 LastMigration = $null
+                BatchProcessingEnabled = $false
+                LastBatchUpdate = $null
+                DepartmentSummary = @{}
+                BatchSummary = @{}
             }
             DeviceMetrics = @{}
             ComponentMetrics = @{
@@ -106,9 +128,10 @@ function Initialize-MigrationAnalytics {
                 Verification = 0
                 UserInteraction = 0
             }
+            LocationData = @{}
         }
         
-        $initialMetrics | ConvertTo-Json -Depth 10 | Out-File -FilePath $metricsFile -Encoding utf8
+        $initialMetrics | ConvertTo-Json -Depth 10 | Out-File -FilePath $metricsFile -Encoding utf8 -Force
         Write-Log -Message "Initialized migration metrics store at $metricsFile" -Level Information
     }
     
@@ -178,7 +201,16 @@ function Register-MigrationEvent {
         [hashtable]$TimeMetrics = @{},
         
         [Parameter(Mandatory = $false)]
-        [hashtable]$ComponentUsage = @{}
+        [hashtable]$ComponentUsage = @{},
+        
+        [Parameter(Mandatory = $false)]
+        [string]$Department,
+        
+        [Parameter(Mandatory = $false)]
+        [string]$Location,
+        
+        [Parameter(Mandatory = $false)]
+        [string]$BatchName
     )
     
     $metrics = Get-MigrationMetrics
@@ -195,6 +227,9 @@ function Register-MigrationEvent {
             LastStatus = ""
             ErrorHistory = @()
             TimeMetrics = @{}
+            Department = $Department
+            Location = $Location
+            BatchName = $BatchName
         }
     }
     
@@ -976,8 +1011,162 @@ function Clear-MigrationMetrics {
     return $false
 }
 
+# Add new departmental report function
+function Get-DepartmentSummaryStats {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $false)]
+        [string]$Department
+    )
+    
+    $metrics = Get-MigrationMetrics
+    
+    if (-not $metrics) {
+        return $null
+    }
+    
+    $results = @{}
+    
+    # If a specific department is requested
+    if ($Department) {
+        $departmentDevices = $metrics.DeviceMetrics.PSObject.Properties | 
+                            Where-Object { $_.Value.Department -eq $Department }
+        
+        $deviceCount = $departmentDevices.Count
+        $successCount = ($departmentDevices | Where-Object { $_.Value.Successes -gt 0 }).Count
+        $failureCount = ($departmentDevices | Where-Object { $_.Value.Failures -gt 0 }).Count
+        
+        $successRate = 0
+        if ($deviceCount -gt 0) {
+            $successRate = [math]::Round(($successCount / $deviceCount) * 100, 1)
+        }
+        
+        $results[$Department] = [PSCustomObject]@{
+            TotalDevices = $deviceCount
+            SuccessfulMigrations = $successCount
+            FailedMigrations = $failureCount
+            SuccessRate = $successRate
+        }
+    }
+    else {
+        # Group all devices by department
+        $departments = @{}
+        
+        foreach ($device in $metrics.DeviceMetrics.PSObject.Properties) {
+            $dept = $device.Value.Department
+            if (-not $dept) { $dept = "Unassigned" }
+            
+            if (-not $departments.ContainsKey($dept)) {
+                $departments[$dept] = @{
+                    TotalDevices = 0
+                    SuccessfulMigrations = 0
+                    FailedMigrations = 0
+                }
+            }
+            
+            $departments[$dept].TotalDevices++
+            if ($device.Value.Successes -gt 0) { $departments[$dept].SuccessfulMigrations++ }
+            if ($device.Value.Failures -gt 0) { $departments[$dept].FailedMigrations++ }
+        }
+        
+        # Calculate success rates
+        foreach ($dept in $departments.Keys) {
+            $successRate = 0
+            if ($departments[$dept].TotalDevices -gt 0) {
+                $successRate = [math]::Round(($departments[$dept].SuccessfulMigrations / $departments[$dept].TotalDevices) * 100, 1)
+            }
+            
+            $results[$dept] = [PSCustomObject]@{
+                TotalDevices = $departments[$dept].TotalDevices
+                SuccessfulMigrations = $departments[$dept].SuccessfulMigrations
+                FailedMigrations = $departments[$dept].FailedMigrations
+                SuccessRate = $successRate
+            }
+        }
+    }
+    
+    return $results
+}
+
+# Add batch tracking functionality
+function Get-BatchSummaryStats {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $false)]
+        [string]$BatchName
+    )
+    
+    $metrics = Get-MigrationMetrics
+    
+    if (-not $metrics) {
+        return $null
+    }
+    
+    $results = @{}
+    
+    # If a specific batch is requested
+    if ($BatchName) {
+        $batchDevices = $metrics.DeviceMetrics.PSObject.Properties | 
+                       Where-Object { $_.Value.BatchName -eq $BatchName }
+        
+        $deviceCount = $batchDevices.Count
+        $successCount = ($batchDevices | Where-Object { $_.Value.Successes -gt 0 }).Count
+        $failureCount = ($batchDevices | Where-Object { $_.Value.Failures -gt 0 }).Count
+        
+        $successRate = 0
+        if ($deviceCount -gt 0) {
+            $successRate = [math]::Round(($successCount / $deviceCount) * 100, 1)
+        }
+        
+        $results[$BatchName] = [PSCustomObject]@{
+            TotalDevices = $deviceCount
+            SuccessfulMigrations = $successCount
+            FailedMigrations = $failureCount
+            SuccessRate = $successRate
+        }
+    }
+    else {
+        # Group all devices by batch
+        $batches = @{}
+        
+        foreach ($device in $metrics.DeviceMetrics.PSObject.Properties) {
+            $batch = $device.Value.BatchName
+            if (-not $batch) { $batch = "Unassigned" }
+            
+            if (-not $batches.ContainsKey($batch)) {
+                $batches[$batch] = @{
+                    TotalDevices = 0
+                    SuccessfulMigrations = 0
+                    FailedMigrations = 0
+                }
+            }
+            
+            $batches[$batch].TotalDevices++
+            if ($device.Value.Successes -gt 0) { $batches[$batch].SuccessfulMigrations++ }
+            if ($device.Value.Failures -gt 0) { $batches[$batch].FailedMigrations++ }
+        }
+        
+        # Calculate success rates
+        foreach ($batch in $batches.Keys) {
+            $successRate = 0
+            if ($batches[$batch].TotalDevices -gt 0) {
+                $successRate = [math]::Round(($batches[$batch].SuccessfulMigrations / $batches[$batch].TotalDevices) * 100, 1)
+            }
+            
+            $results[$batch] = [PSCustomObject]@{
+                TotalDevices = $batches[$batch].TotalDevices
+                SuccessfulMigrations = $batches[$batch].SuccessfulMigrations
+                FailedMigrations = $batches[$batch].FailedMigrations
+                SuccessRate = $successRate
+            }
+        }
+    }
+    
+    return $results
+}
+
 # Initialize the module
 Initialize-MigrationAnalytics | Out-Null
 
 # Export public functions
-Export-ModuleMember -Function Get-MigrationMetrics, Register-MigrationEvent, New-MigrationAnalyticsReport, Register-ComponentUsage, Register-MigrationPhaseTime, Get-MigrationSummaryStats, Clear-MigrationMetrics, Initialize-MigrationAnalytics 
+Export-ModuleMember -Function Get-MigrationMetrics, Register-MigrationEvent, New-MigrationAnalyticsReport, Register-ComponentUsage, Register-MigrationPhaseTime, Get-MigrationSummaryStats, Clear-MigrationMetrics, Initialize-MigrationAnalytics, Get-DepartmentSummaryStats, Get-BatchSummaryStats 

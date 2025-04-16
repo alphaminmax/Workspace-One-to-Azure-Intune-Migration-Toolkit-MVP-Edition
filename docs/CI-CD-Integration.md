@@ -1,3 +1,5 @@
+![Crayon Logo](../assests/img/Crayon-Logo-RGB-Negative.svg)
+
 # CI/CD Integration for Migration Project
 
 This document outlines how the Workspace ONE to Azure/Intune migration project integrates with CI/CD pipelines to ensure consistent, automated testing and deployment.

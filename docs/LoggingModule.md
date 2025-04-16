@@ -1,3 +1,5 @@
+![Crayon Logo](../assests/img/Crayon-Logo-RGB-Negative.svg)
+
 # Enhanced Logging Module for Migration Scripts
 
 ## Overview

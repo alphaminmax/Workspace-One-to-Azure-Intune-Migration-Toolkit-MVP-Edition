@@ -1,3 +1,5 @@
+![Crayon Logo](../assests/img/Crayon-Logo-RGB-Negative.svg)
+
 # Migration Toolkit Workflow Diagrams
 
 This document provides visual workflow diagrams for the key processes in the Workspace ONE to Azure/Intune migration toolkit.

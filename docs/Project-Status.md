@@ -1,3 +1,5 @@
+![Crayon Logo](../assests/img/Crayon-Logo-RGB-Negative.svg)
+
 # Project Status Tracking
 
 This document describes how to track, monitor, and update the status of the Workspace ONE to Azure/Intune Migration Toolkit project.

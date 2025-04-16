@@ -1,3 +1,5 @@
+![Crayon Logo](../assests/img/Crayon-Logo-RGB-Negative.svg)
+
 # End User Experience Guide: WS1 to Azure/Intune Migration
 
 ## 1. Overview
