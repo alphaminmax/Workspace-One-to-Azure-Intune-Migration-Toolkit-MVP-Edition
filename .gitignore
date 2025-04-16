@@ -52,3 +52,9 @@ config/settings.*.json
 
 # User-specific files
 *settings.user.json 
+
+#Cursor Settings
+.cursorrules
+.cursor/
+*.mdc
+
