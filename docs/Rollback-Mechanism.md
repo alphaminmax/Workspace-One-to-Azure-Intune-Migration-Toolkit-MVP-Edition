@@ -6,35 +6,8 @@ The RollbackMechanism module provides comprehensive rollback capability for fail
 
 ## Workflow Diagram
 
-The following diagram illustrates the rollback mechanism workflow:
-
-```mermaid
-graph TD
-Start([Start Migration Process]) --> InitRollback[Initialize Rollback Mechanism]
-InitRollback --> CreateBackupFolder[Create Backup Folder]
-CreateBackupFolder --> SystemRestore[Create System Restore Point]
-SystemRestore --> BackupRegistry[Backup Registry Keys]
-BackupRegistry --> BackupFiles[Backup Configuration Files]
-BackupFiles --> VerifyBackup[Verify Backup Integrity]
-VerifyBackup --> Execute[Execute Migration Steps]
-Execute --> MigrationCheck{Migration Successful?}
-MigrationCheck -->|Yes| CompleteTrans[Complete Transaction]
-MigrationCheck -->|No| InitiateRollback[Initiate Rollback]
-InitiateRollback --> RestoreOptions{Restore Method}
-RestoreOptions -->|System Restore| RestoreSystem[Use System Restore]
-RestoreOptions -->|Manual Restore| RestoreRegistry[Restore Registry Keys]
-RestoreRegistry --> RestoreFiles[Restore Files]
-RestoreSystem --> RestoreCheck[Verify Restoration]
-RestoreFiles --> RestoreCheck
-RestoreCheck --> RestartServices[Restart Services]
-RestartServices --> VerifyServices[Verify Services]
-VerifyServices --> Complete([Rollback Complete])
-CompleteTrans --> CleanupCheck{Cleanup?}
-CleanupCheck -->|Yes| Cleanup[Cleanup Backups]
-CleanupCheck -->|No| Skip[Skip Cleanup]
-Cleanup --> End([End Process])
-Skip --> End
-```
+The rollback mechanism workflow diagram can be found in the following file:
+[Rollback Mechanism Workflow Diagram](diagrams/rollback-mechanism.mmd)
 
 ## Key Features
 

@@ -6,42 +6,8 @@ The MigrationAnalytics module collects, analyzes, and reports on migration metri
 
 ## Workflow Diagram
 
-The following diagram illustrates the migration analytics workflow:
-
-```mermaid
-graph TD
-Start([Start Analytics Process]) --> Initialize[Initialize Analytics Module]
-Initialize --> ConfigSettings[Configure Storage and Reports Path]
-ConfigSettings --> MetricsCheck{Metrics File Exists?}
-MetricsCheck -->|No| CreateMetrics[Create New Metrics Storage]
-MetricsCheck -->|Yes| GetMetrics[Retrieve Existing Metrics]
-CreateMetrics --> RegisterEvent[Register Migration Event]
-GetMetrics --> RegisterEvent
-RegisterEvent --> EventType{Event Type}
-EventType -->|Started| RecordStart[Record Migration Start]
-EventType -->|Completed| RecordSuccess[Record Migration Success]
-EventType -->|Failed| RecordFailure[Record Migration Failure]
-RecordStart --> UpdateSummary[Update Migration Summary]
-RecordSuccess --> StoreTimeMetrics[Store Time Metrics]
-RecordSuccess --> UpdateSummary
-RecordFailure --> StoreErrorInfo[Store Error Information]
-RecordFailure --> UpdateSummary
-StoreTimeMetrics --> UpdateComponents[Update Component Usage]
-StoreErrorInfo --> UpdateComponents
-UpdateSummary --> SaveMetrics[Save Metrics to Storage]
-UpdateComponents --> SaveMetrics
-SaveMetrics --> ReportCheck{Generate Report?}
-ReportCheck -->|Yes| ReportFormat{Report Format}
-ReportCheck -->|No| End([End Process])
-ReportFormat -->|HTML| GenerateHTML[Generate HTML Report]
-ReportFormat -->|JSON| GenerateJSON[Generate JSON Data]
-ReportFormat -->|CSV| GenerateCSV[Generate CSV Export]
-GenerateHTML --> CreateCharts[Create Visualization Charts]
-GenerateJSON --> OutputReports[Output Reports]
-GenerateCSV --> OutputReports
-CreateCharts --> OutputReports
-OutputReports --> End
-```
+The migration analytics workflow diagram can be found in the following file:
+[Migration Analytics Workflow Diagram](diagrams/migration-analytics.mmd)
 
 ## Key Features
 

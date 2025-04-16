@@ -6,41 +6,8 @@ The IntuneIntegration module provides comprehensive functionality for interactin
 
 ## Workflow Diagram
 
-The following diagram illustrates the Intune integration workflow:
-
-```mermaid
-graph TD
-Start([Start Intune Integration]) --> InitIntune[Initialize Intune Integration]
-InitIntune --> AuthMethod{Authentication Method}
-AuthMethod -->|Client Secret| ClientAuth[Authenticate with Client Secret]
-AuthMethod -->|Credentials| CredAuth[Authenticate with Credentials]
-AuthMethod -->|Interactive| InteractiveAuth[Interactive Authentication]
-ClientAuth --> Connected[Connect to Graph API]
-CredAuth --> Connected
-InteractiveAuth --> Connected
-Connected --> Operations{Operations}
-Operations -->|Device Management| GetDevices[Get Intune Devices]
-Operations -->|Profile Management| ImportProfiles[Import Device Profiles]
-Operations -->|Application Management| ImportApps[Import Applications]
-GetDevices --> FilterDevices[Filter Devices]
-FilterDevices --> DeviceComplete([Device Management Complete])
-ImportProfiles --> CreateProfile[Create Configuration Profile]
-CreateProfile --> ProfileComplete([Profile Management Complete])
-ImportApps --> SourceType{Source Type}
-SourceType -->|WS1 Export| ProcessPackages[Process Application Packages]
-SourceType -->|New App| CreateWin32App[Create Win32 App]
-ProcessPackages --> PrepareIntuneWin[Prepare .intunewin Files]
-CreateWin32App --> UploadContent[Upload App Content]
-PrepareIntuneWin --> UploadContent
-UploadContent --> ConfigureApp[Configure App Settings]
-ConfigureApp --> ConfigureRules[Configure Detection Rules]
-ConfigureRules --> AssignApp[Assign Application]
-AssignApp --> DeployCheck{Deploy Now?}
-DeployCheck -->|Yes| SyncDevice[Sync Device]
-DeployCheck -->|No| Schedule[Schedule Deployment]
-SyncDevice --> AppComplete([App Management Complete])
-Schedule --> AppComplete
-```
+The Intune integration workflow diagram can be found in the following file:
+[Intune Integration Workflow Diagram](diagrams/intune-integration.mmd)
 
 ## Key Features
 
