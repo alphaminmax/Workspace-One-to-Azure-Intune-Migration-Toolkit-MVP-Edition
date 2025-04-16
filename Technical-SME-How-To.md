@@ -43,18 +43,27 @@ The toolkit follows a modular architecture with these key components:
    git clone https://github.com/alphaminmax/Workspace-One-to-Azure-Intune-Migration-Toolkit-MVP-Edition.git
    ```
 
-2. Configure settings by editing `config/settings.json` or using environment variables:
-   ```json
-   {
-     "targetTenant": {
-       "clientID": "YOUR_AZURE_CLIENT_ID",
-       "clientSecret": "YOUR_AZURE_CLIENT_SECRET"
-     },
-     "ws1host": "YOUR_WS1_HOST",
-     "ws1username": "YOUR_WS1_USERNAME", 
-     "ws1password": "YOUR_WS1_PASSWORD",
-     "ws1apikey": "YOUR_WS1_API_KEY"
-   }
+2. Configure settings using the .env file (recommended):
+   ```powershell
+   # Copy the template file
+   Copy-Item .env.template .env
+   
+   # Edit the .env file with your credentials
+   notepad .env
+   ```
+   
+   Your .env file should contain:
+   ```
+   # Azure Credentials
+   AZURE_CLIENT_ID=your-client-id
+   AZURE_CLIENT_SECRET=your-client-secret
+   AZURE_TENANT_ID=your-tenant-id
+   
+   # Workspace ONE Credentials
+   WS1_HOST=your-ws1-host
+   WS1_USERNAME=your-ws1-username
+   WS1_PASSWORD=your-ws1-password
+   WS1_API_KEY=your-ws1-api-key
    ```
 
 3. Run the initialization script:
