@@ -1,6 +1,17 @@
-# Workspace One to Azure/Intune Migration Toolkit
+# Workspace One to Azure/Intune Migration Toolkit - MVP Edition
 
-A comprehensive PowerShell-based solution for migrating devices from VMware Workspace One to Microsoft Intune/Azure AD, including tools for migration verification, connectivity testing, script validation, and automated migration processes. Designed for enterprise-grade silent deployment with non-admin execution capabilities.
+A streamlined PowerShell-based solution for migrating devices from VMware Workspace One to Microsoft Intune/Azure AD. This MVP (Minimum Viable Product) edition focuses on core migration functionality without enterprise overhead.
+
+## MVP Approach
+
+This toolkit follows an MVP approach that:
+
+1. **Focuses on Core Functionality**: Prioritizes essential migration components
+2. **Simplifies Deployment**: Reduces complexity for quick implementation
+3. **Enables Fast Iterations**: Allows for rapid testing and improvement cycles
+4. **Provides Foundation**: Establishes a base for future feature expansion
+
+For comprehensive details about the MVP approach, see [MVP Migration Guide](docs/MVP-Migration-Guide.md).
 
 ## Overview
 
@@ -8,13 +19,9 @@ This toolkit provides:
 
 1. **Migration Process**: Automated migration from Workspace One to Azure Intune
 2. **Migration Validation**: Tools to verify prerequisites and environment readiness
-3. **Script Testing**: Automated validation of PowerShell scripts for syntax errors and initialization issues
+3. **Script Testing**: Automated validation of PowerShell scripts
 4. **Connectivity Testing**: Verification of network requirements for migration
-5. **Migration Reporting**: Detailed HTML reports of migration status and results
-6. **Deployment Options**: Support for Intune, SCCM, and GPO deployment methods
-7. **Non-Admin Execution**: Ability to run critical operations without requiring permanent admin rights
-8. **User Profile Migration**: Secure transfer of user profiles between management systems
-9. **Silent Operation**: Support for unattended, silent migration without user interaction
+5. **Migration Reporting**: Basic HTML reports of migration status and results
 
 ## System Requirements
 
@@ -64,6 +71,30 @@ ws1-to-azure-migration/
 ```
 
 ## Core Functionality
+
+### Validation Module
+
+The solution includes a validation module for ensuring environment readiness and migration success:
+
+- **Prerequisite Testing**: Checks system requirements and connectivity
+- **Migration Verification**: Validates successful migration to Intune
+- **Reporting**: Generates HTML reports of validation results
+
+### Rollback Mechanism
+
+Implements a simple rollback capability for failed migrations:
+
+- **System Restore Points**: Creates restore points before migration
+- **Configuration Backup**: Preserves Workspace ONE configuration
+- **Registry Backup**: Stores critical registry keys
+
+### Logging
+
+Comprehensive logging for troubleshooting:
+
+- **Centralized Logging**: All components use the common logging module
+- **Multiple Log Levels**: Support for INFO, WARNING, ERROR, and DEBUG
+- **File and Console Output**: Logs to both file and console
 
 ### Privilege Management
 
@@ -198,24 +229,19 @@ This tool packages and prepares the migration toolkit for deployment via differe
 - **Documentation**: Generates deployment instructions
 - **Silent Mode**: Supports silent/automated migration
 
-## Getting Started: Detailed Step-by-Step Guide
+## Getting Started: Quick Start Guide
 
-### Prerequisites Setup
+### Prerequisites
 
 1. **Verify System Requirements**:
-   ```powershell
-   # Check PowerShell version
-   $PSVersionTable.PSVersion
-   
-   # Check Windows version
-   [System.Environment]::OSVersion.Version
-   ```
+   - Windows 10 (Build 1809 or later) or Windows 11
+   - PowerShell 5.1 or later
+   - Network connectivity to both Workspace One and Azure/Intune endpoints
 
 2. **Install Required PowerShell Modules**:
    ```powershell
    # Install required modules if missing
    Install-Module -Name Microsoft.Graph.Intune -Scope CurrentUser -Force
-   Install-Module -Name Az.Accounts -Scope CurrentUser -Force
    ```
 
 3. **Set Proper Execution Policy**:
@@ -224,7 +250,7 @@ This tool packages and prepares the migration toolkit for deployment via differe
    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
    ```
 
-### Installation Process
+### Installation
 
 1. **Download the Repository**:
    ```powershell
@@ -245,89 +271,28 @@ This tool packages and prepares the migration toolkit for deployment via differe
    notepad .\config\WS1Config.json
    ```
 
-4. **Verify Network Connectivity**:
-   ```powershell
-   # Run the connectivity test tool
-   .\src\tools\Test-MigrationConnectivity.ps1 -WorkspaceOneServer "https://your-ws1-server.com" -AzureEndpoint "https://login.microsoftonline.com"
-   ```
+### Basic Usage
 
-### Usage Scenarios
-
-#### Scenario 1: Pre-Migration Environment Testing
-
-Before deploying the migration solution, test the environment for compatibility:
+To validate your environment before migration:
 
 ```powershell
 # Run environment validation tool
-.\src\scripts\Test-WS1Environment.ps1 -GenerateReport -OutputPath "C:\Temp\Reports"
+.\src\scripts\Test-WS1Environment.ps1 -GenerateReport
 ```
 
-This will:
-1. Check system compatibility with migration requirements
-2. Test network connectivity to both Workspace One and Azure endpoints
-3. Verify presence of required components
-4. Generate a detailed HTML readiness report
-
-#### Scenario 2: Script Validation
-
-Test all migration scripts for syntax and initialization issues:
+To perform the migration:
 
 ```powershell
-# Run script testing
-.\src\scripts\TestScripts.ps1
+# Start the migration process
+.\src\scripts\Invoke-WorkspaceOneSetup.ps1
 ```
 
-This will:
-1. Test all PowerShell scripts in the project for syntax errors
-2. Verify scripts can initialize properly
-3. Generate an HTML report of test results in `C:\Temp\Logs\ScriptTests_[timestamp]`
-4. Log detailed information about the testing process
-
-#### Scenario 3: Deployment Package Creation
-
-For IT administrators preparing for enterprise deployment:
+To verify a successful migration:
 
 ```powershell
-# Create deployment package for Intune
-.\deployment\Deploy-WS1EnrollmentTools.ps1 -DeploymentType Intune -OutputPath "C:\Temp\Deployment" -AzureTenantId "your-tenant-id" -EnrollmentPoint "https://enrollpoint.example.com"
+# Verify migration success
+.\src\scripts\Test-MigratedDevice.ps1 -GenerateReport
 ```
-
-This will:
-1. Create a deployment package for Intune
-2. Generate necessary detection and installation scripts
-3. Provide instructions for uploading to Intune
-4. Configure with the specified Azure tenant and enrollment settings
-
-#### Scenario 4: Silent Migration Execution
-
-To perform the complete migration process silently without user interaction:
-
-```powershell
-# Deploy migration package silently
-.\src\scripts\Invoke-WorkspaceOneSetup.ps1 -Silent -LogPath "C:\Temp\MigrationLogs" -ConfigPath "\\server\share\config.json" -AzureTenantId "tenant-id"
-```
-
-This initiates the silent multi-stage migration process:
-1. Removes Workspace One management agent without user prompts
-2. Handles privilege elevation automatically when needed
-3. Completes Azure/Intune enrollment in background
-4. Logs all operations for administrator review
-5. Returns exit code indicating success or failure
-
-#### Scenario 5: Interactive Migration with GUI
-
-For desktop support personnel assisting with migration:
-
-```powershell
-# Run interactive migration with GUI
-.\src\scripts\Invoke-WorkspaceOneSetup.ps1 -Interactive
-```
-
-This launches a GUI that:
-1. Guides through the migration process with visual steps
-2. Shows progress indicators for long-running operations
-3. Provides detailed error information if issues occur
-4. Allows customization of migration options
 
 ## Migration Process Details
 
