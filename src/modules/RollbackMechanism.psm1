@@ -352,6 +352,15 @@ function Backup-WorkspaceOneConfiguration {
 .PARAMETER Force
     Force the rollback even if not all components can be restored. Default is $false.
     
+.PARAMETER SkipRegistryRestore
+    Skip restoring registry keys.
+    
+.PARAMETER SkipFileRestore
+    Skip restoring files.
+    
+.PARAMETER SkipServiceRestore
+    Skip restoring services.
+    
 .EXAMPLE
     Restore-WorkspaceOneMigration -UseSystemRestore $true
     
@@ -366,7 +375,16 @@ function Restore-WorkspaceOneMigration {
         [bool]$UseSystemRestore = $false,
         
         [Parameter(Mandatory = $false)]
-        [switch]$Force
+        [switch]$Force,
+        
+        [Parameter(Mandatory = $false)]
+        [switch]$SkipRegistryRestore,
+        
+        [Parameter(Mandatory = $false)]
+        [switch]$SkipFileRestore,
+        
+        [Parameter(Mandatory = $false)]
+        [switch]$SkipServiceRestore
     )
     
     if (-not $script:TransactionInProgress) {
@@ -396,75 +414,262 @@ function Restore-WorkspaceOneMigration {
         $rollbackSuccess = $true
         
         # Restore registry keys in reverse order
-        Write-Log -Message "Restoring registry keys..." -Level Information
-        $registryBackups = $script:BackupItems | Where-Object { $_.Type -eq "Registry" }
-        foreach ($backup in $registryBackups) {
-            try {
-                if (Test-Path -Path $backup.BackupFile) {
-                    & reg.exe import "$($backup.BackupFile)" | Out-Null
-                    if ($LASTEXITCODE -eq 0) {
-                        Write-Log -Message "Successfully restored registry key from: $($backup.BackupFile)" -Level Information
+        if (-not $SkipRegistryRestore) {
+            Write-Log -Message "Restoring registry keys..." -Level Information
+            $registryBackups = $script:BackupItems | Where-Object { $_.Type -eq "Registry" }
+            
+            # Sort registry backups to ensure consistent restore order
+            $registryBackups = $registryBackups | Sort-Object -Property { $_.Path.Length } -Descending
+            
+            foreach ($backup in $registryBackups) {
+                try {
+                    if (Test-Path -Path $backup.BackupFile) {
+                        # Check if the registry key path exists before restore
+                        $keyPath = $backup.Path
+                        $keyExists = $false
+                        
+                        # Convert HKLM:\Path to registry provider format
+                        if ($keyPath -match "^HKLM:\\(.+)$") {
+                            $keyPath = "HKEY_LOCAL_MACHINE\$($Matches[1])"
+                            $keyExists = $true
+                        }
+                        elseif ($keyPath -match "^HKLM\\(.+)$") {
+                            $keyPath = "HKEY_LOCAL_MACHINE\$($Matches[1])"
+                            $keyExists = $true
+                        }
+                        elseif ($keyPath -match "^HKCU:\\(.+)$") {
+                            $keyPath = "HKEY_CURRENT_USER\$($Matches[1])"
+                            $keyExists = $true
+                        }
+                        elseif ($keyPath -match "^HKCU\\(.+)$") {
+                            $keyPath = "HKEY_CURRENT_USER\$($Matches[1])"
+                            $keyExists = $true
+                        }
+                        
+                        # Save existing registry key if it exists
+                        $tempBackupPath = $null
+                        if ($keyExists) {
+                            $tempBackupPath = Join-Path -Path $env:TEMP -ChildPath "RollbackTemp_$(Get-Random).reg"
+                            & reg.exe export "$keyPath" "$tempBackupPath" /y | Out-Null
+                        }
+                        
+                        # Try to restore from backup
+                        & reg.exe import "$($backup.BackupFile)" | Out-Null
+                        if ($LASTEXITCODE -eq 0) {
+                            Write-Log -Message "Successfully restored registry key from: $($backup.BackupFile)" -Level Information
+                            
+                            # If temporary backup was created, keep it for safety
+                            if ($tempBackupPath -and (Test-Path -Path $tempBackupPath)) {
+                                $safetyPath = Join-Path -Path $script:BackupBasePath -ChildPath "RollbackSafety_$(Get-Date -Format 'yyyyMMdd_HHmmss').reg"
+                                Move-Item -Path $tempBackupPath -Destination $safetyPath -Force
+                                Write-Log -Message "Previous registry state saved to: $safetyPath" -Level Information
+                            }
+                        } else {
+                            $rollbackSuccess = $false
+                            Write-Log -Message "Failed to restore registry key from: $($backup.BackupFile). Exit code: $LASTEXITCODE" -Level Error
+                            
+                            # Try to restore previous state if we have it
+                            if ($tempBackupPath -and (Test-Path -Path $tempBackupPath)) {
+                                & reg.exe import "$tempBackupPath" | Out-Null
+                                Remove-Item -Path $tempBackupPath -Force -ErrorAction SilentlyContinue
+                            }
+                        }
                     } else {
                         $rollbackSuccess = $false
-                        Write-Log -Message "Failed to restore registry key from: $($backup.BackupFile). Exit code: $LASTEXITCODE" -Level Error
+                        Write-Log -Message "Registry backup file not found: $($backup.BackupFile)" -Level Error
                     }
-                } else {
+                } catch {
                     $rollbackSuccess = $false
-                    Write-Log -Message "Registry backup file not found: $($backup.BackupFile)" -Level Error
+                    Write-Log -Message "Error restoring registry key: $_" -Level Error
                 }
-            } catch {
-                $rollbackSuccess = $false
-                Write-Log -Message "Error restoring registry key: $_" -Level Error
             }
         }
         
         # Restore folders
-        Write-Log -Message "Restoring backed up folders..." -Level Information
-        $folderBackups = $script:BackupItems | Where-Object { $_.Type -eq "Folder" }
-        foreach ($backup in $folderBackups) {
-            try {
-                if (Test-Path -Path $backup.BackupFile) {
-                    if (Test-Path -Path $backup.Path) {
-                        # Rename existing folder as a precaution
-                        $timestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
-                        $renamedPath = "$($backup.Path)_MigrationFailed_$timestamp"
-                        Rename-Item -Path $backup.Path -NewName $renamedPath -Force -ErrorAction SilentlyContinue
+        if (-not $SkipFileRestore) {
+            Write-Log -Message "Restoring backed up folders..." -Level Information
+            $folderBackups = $script:BackupItems | Where-Object { $_.Type -eq "Folder" }
+            foreach ($backup in $folderBackups) {
+                try {
+                    if (Test-Path -Path $backup.BackupFile) {
+                        if (Test-Path -Path $backup.Path) {
+                            # Rename existing folder as a precaution
+                            $timestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
+                            $renamedPath = "$($backup.Path)_MigrationFailed_$timestamp"
+                            
+                            # Rename with robocopy for safety (handles in-use files better)
+                            $robocopyLogPath = Join-Path -Path $env:TEMP -ChildPath "RobocopyRename_$timestamp.log"
+                            $robocopyParams = @(
+                                "$($backup.Path)",
+                                "$renamedPath",
+                                "/E", "/MOVE", "/R:3", "/W:5",
+                                "/LOG:$robocopyLogPath"
+                            )
+                            
+                            Start-Process -FilePath "robocopy.exe" -ArgumentList $robocopyParams -Wait -NoNewWindow
+                            
+                            if (-not (Test-Path -Path $backup.Path)) {
+                                Write-Log -Message "Successfully renamed existing folder to $renamedPath" -Level Information
+                            } else {
+                                # Fallback to rename
+                                Rename-Item -Path $backup.Path -NewName $renamedPath -Force -ErrorAction SilentlyContinue
+                            }
+                        }
+                        
+                        # Restore from backup using robocopy for better reliability
+                        $robocopyLogPath = Join-Path -Path $env:TEMP -ChildPath "RobocopyRestore_$(Get-Random).log"
+                        $robocopyParams = @(
+                            "$($backup.BackupFile)",
+                            "$($backup.Path)",
+                            "/E", "/R:3", "/W:5", "/XO",
+                            "/LOG:$robocopyLogPath"
+                        )
+                        
+                        Start-Process -FilePath "robocopy.exe" -ArgumentList $robocopyParams -Wait -NoNewWindow
+                        
+                        if (Test-Path -Path $backup.Path) {
+                            Write-Log -Message "Successfully restored folder from: $($backup.BackupFile)" -Level Information
+                        } else {
+                            # Fallback to Copy-Item
+                            New-Item -Path $backup.Path -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
+                            Copy-Item -Path "$($backup.BackupFile)\*" -Destination $backup.Path -Recurse -Force -ErrorAction Stop
+                            Write-Log -Message "Successfully restored folder from: $($backup.BackupFile) using Copy-Item" -Level Information
+                        }
+                    } else {
+                        $rollbackSuccess = $false
+                        Write-Log -Message "Folder backup not found: $($backup.BackupFile)" -Level Error
                     }
-                    
-                    # Restore from backup
-                    Copy-Item -Path $backup.BackupFile -Destination $backup.Path -Recurse -Force -ErrorAction Stop
-                    Write-Log -Message "Successfully restored folder from: $($backup.BackupFile)" -Level Information
-                } else {
+                } catch {
                     $rollbackSuccess = $false
-                    Write-Log -Message "Folder backup not found: $($backup.BackupFile)" -Level Error
+                    Write-Log -Message "Error restoring folder: $_" -Level Error
                 }
-            } catch {
-                $rollbackSuccess = $false
-                Write-Log -Message "Error restoring folder: $_" -Level Error
             }
         }
         
-        # Reset Workspace ONE MDM service if it exists
-        $mdmService = Get-Service -Name "AirWatchMDMService" -ErrorAction SilentlyContinue
-        if ($null -ne $mdmService) {
-            try {
-                Restart-Service -Name "AirWatchMDMService" -Force -ErrorAction SilentlyContinue
-                Write-Log -Message "AirWatch MDM Service restarted." -Level Information
-            } catch {
-                Write-Log -Message "Failed to restart AirWatch MDM Service: $_" -Level Warning
+        # Restore services
+        if (-not $SkipServiceRestore) {
+            # Reset Workspace ONE MDM service if it exists
+            $mdmService = Get-Service -Name "AirWatchMDMService" -ErrorAction SilentlyContinue
+            if ($null -ne $mdmService) {
+                try {
+                    # Check service startup type
+                    $serviceInfo = Get-WmiObject -Class Win32_Service -Filter "Name='AirWatchMDMService'"
+                    $startupType = $serviceInfo.StartMode
+                    
+                    # Ensure service is set to auto-start
+                    if ($startupType -ne "Auto") {
+                        Set-Service -Name "AirWatchMDMService" -StartupType Automatic
+                        Write-Log -Message "AirWatch MDM Service startup type set to Automatic" -Level Information
+                    }
+                    
+                    # Start the service
+                    Start-Service -Name "AirWatchMDMService" -ErrorAction Stop
+                    Write-Log -Message "AirWatch MDM Service started successfully" -Level Information
+                } catch {
+                    $rollbackSuccess = $false
+                    Write-Log -Message "Failed to restart AirWatch MDM Service: $_" -Level Warning
+                }
             }
+            
+            # Check and restore other Workspace ONE related services
+            $ws1Services = @("AWService", "AWNetworkService", "AWWindowsUpdateService")
+            foreach ($serviceName in $ws1Services) {
+                $service = Get-Service -Name $serviceName -ErrorAction SilentlyContinue
+                if ($null -ne $service) {
+                    try {
+                        # Ensure service is set to auto-start
+                        Set-Service -Name $serviceName -StartupType Automatic -ErrorAction SilentlyContinue
+                        
+                        # Start the service
+                        Start-Service -Name $serviceName -ErrorAction SilentlyContinue
+                        Write-Log -Message "$serviceName started successfully" -Level Information
+                    } catch {
+                        Write-Log -Message "Failed to restart $serviceName: $_" -Level Warning
+                    }
+                }
+            }
+        }
+        
+        # Additional rollback actions
+        
+        # 1. Check and restore WS1 Hub app
+        $hubAppPath = "$env:ProgramFiles\WindowsApps\AirWatchLLC.WorkspaceONEIntelligentHub*"
+        if (Test-Path -Path $hubAppPath) {
+            Write-Log -Message "Workspace ONE Hub app found, no restoration needed" -Level Information
+        } else {
+            Write-Log -Message "Workspace ONE Hub app not found. Manual reinstallation may be required." -Level Warning
+        }
+        
+        # 2. Restore Workspace ONE MDM enrollment
+        if (Test-Path -Path "HKLM:\SOFTWARE\Microsoft\Enrollments" -ErrorAction SilentlyContinue) {
+            $enrollments = Get-ChildItem -Path "HKLM:\SOFTWARE\Microsoft\Enrollments" -ErrorAction SilentlyContinue
+            $ws1Enrollment = $enrollments | Where-Object { 
+                (Get-ItemProperty -Path "$($_.PSPath)" -ErrorAction SilentlyContinue).ProviderID -match "AirWatch" 
+            }
+            
+            if ($ws1Enrollment) {
+                Write-Log -Message "Workspace ONE enrollment found, no restoration needed" -Level Information
+            } else {
+                Write-Log -Message "Workspace ONE enrollment not found. Manual re-enrollment may be required." -Level Warning
+            }
+        } else {
+            Write-Log -Message "Enrollments registry key not found. Manual re-enrollment may be required." -Level Warning
+        }
+        
+        # 3. Remove Intune enrollment if present
+        try {
+            $enrollmentPath = "HKLM:\SOFTWARE\Microsoft\Enrollments"
+            $intuneEnrollments = Get-ChildItem -Path $enrollmentPath -ErrorAction SilentlyContinue | 
+                Where-Object { 
+                    $path = $_.PSPath
+                    $providerID = Get-ItemProperty -Path $path -Name "ProviderID" -ErrorAction SilentlyContinue
+                    $providerID -and $providerID.ProviderID -match "MS DM Server" 
+                }
+                
+            if ($intuneEnrollments) {
+                foreach ($enrollment in $intuneEnrollments) {
+                    $enrollmentID = Split-Path -Path $enrollment.PSPath -Leaf
+                    Write-Log -Message "Removing Intune enrollment: $enrollmentID" -Level Warning
+                    Remove-Item -Path $enrollment.PSPath -Recurse -Force -ErrorAction SilentlyContinue
+                }
+            }
+        } catch {
+            Write-Log -Message "Error removing Intune enrollments: $_" -Level Warning
+        }
+        
+        # 4. Validate rollback success with basic checks
+        $rollbackValidationSuccess = $true
+        
+        try {
+            # Check if WS1 registry keys are present
+            if (-not (Test-Path -Path "HKLM:\SOFTWARE\AirWatch" -ErrorAction SilentlyContinue)) {
+                $rollbackValidationSuccess = $false
+                Write-Log -Message "Validation failed: AirWatch registry key not found after rollback" -Level Warning
+            }
+            
+            # Check if WS1 services exist
+            $awService = Get-Service -Name "AirWatchMDMService" -ErrorAction SilentlyContinue
+            if (-not $awService) {
+                $rollbackValidationSuccess = $false
+                Write-Log -Message "Validation failed: AirWatch MDM service not found after rollback" -Level Warning
+            }
+        } catch {
+            $rollbackValidationSuccess = $false
+            Write-Log -Message "Error during rollback validation: $_" -Level Error
         }
         
         # Reset TransactionInProgress
         $script:TransactionInProgress = $false
         
-        if (-not $rollbackSuccess -and -not $Force) {
+        $overallSuccess = $rollbackSuccess -and $rollbackValidationSuccess
+        
+        if (-not $overallSuccess -and -not $Force) {
             Write-Log -Message "Rollback completed with errors. Some components may not have been restored." -Level Warning
         } else {
             Write-Log -Message "Rollback completed successfully." -Level Information
         }
         
-        return $rollbackSuccess -or $Force
+        return $overallSuccess -or $Force
     }
     catch {
         Write-Log -Message "Critical error during rollback: $_" -Level Error
