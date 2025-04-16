@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { 
+            font-family: Segoe UI, Arial, sans-serif; 
+            margin: 0; 
+            padding: 0; 
+            background-color: black; 
+            color: white; 
+            height: 100vh; 
+            overflow: hidden; 
+        }
+        .container { 
+            display: flex; 
+            flex-direction: column; 
+            height: 100vh; 
+            padding: 40px; 
+            box-sizing: border-box;
+            background: linear-gradient(135deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.9) 100%);
+        }
+        .header { 
+            display: flex; 
+            align-items: center; 
+        }
+        .logo { 
+            max-height: 60px; 
+            margin-right: 20px; 
+            border-radius: 5px;
+        }
+        .company { 
+            font-size: 28px; 
+            font-weight: bold; 
+            color: #0078D4; 
+        }
+        .title { 
+            font-size: 42px; 
+            font-weight: bold; 
+            margin: 30px 0; 
+            color: white; 
+        }
+        .message { 
+            font-size: 20px; 
+            line-height: 1.6; 
+            max-width: 800px; 
+        }
+        .progress-container { 
+            margin: 30px 0; 
+            background-color: #333; 
+            border-radius: 10px; 
+            height: 24px; 
+            width: 80%; 
+            max-width: 700px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3) inset;
+        }
+        .progress-bar { 
+            height: 100%; 
+            width: {1}%; 
+            background: linear-gradient(90deg, #0078D4, #2b96e6); 
+            border-radius: 10px; 
+            transition: width 0.5s ease-in-out;
+            box-shadow: 0 0 5px rgba(255,255,255,0.3);
+        }
+        .status { 
+            margin-top: 15px; 
+            font-weight: bold;
+            font-size: 22px;
+        }
+        .details {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            max-width: 700px;
+        }
+        .footer { 
+            margin-top: auto; 
+            font-size: 16px; 
+            color: #ccc; 
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding-top: 15px;
+        }
+        .highlight { 
+            color: #0078D4; 
+            font-weight: bold; 
+        }
+        .warning {
+            color: #ff8c00;
+            font-weight: bold;
+            margin-top: 20px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <img class="logo" src="{0}" alt="Company Logo">
+            <div class="company">Migration Assistant</div>
+        </div>
+        <div class="title">Migration in Progress</div>
+        <div class="message">
+            <p>Your device is being migrated from Workspace ONE to Microsoft Intune.</p>
+            <p>Current status: <span class="highlight">{2}</span></p>
+            <div class="progress-container">
+                <div class="progress-bar"></div>
+            </div>
+            <div class="status">{1}% Complete</div>
+            <div class="details">
+                <p>The migration process is working in the background. Your device will continue to function normally during most of this process.</p>
+                <p>Estimated time remaining: <span class="highlight">~{3} minutes</span></p>
+            </div>
+            <p class="warning">⚠ Please do not restart your device until the migration is complete.</p>
+        </div>
+        <div class="footer">
+            <p>For assistance, please contact IT Support at <span class="highlight">helpdesk@company.com</span> or call <span class="highlight">555-123-4567</span></p>
+        </div>
+    </div>
+</body>
+</html> 

@@ -43,8 +43,10 @@ ws1-to-azure-migration/
 │   │   ├── ValidationModule.psm1     # Environment and migration validation
 │   │   ├── PrivilegeManagement.psm1  # Privilege elevation without admin rights
 │   │   ├── ProfileTransfer.psm1      # User profile migration
+│   │   ├── ApplicationDataMigration.psm1 # Application settings migration
 │   │   ├── GraphAPIIntegration.psm1  # Microsoft Graph API integration
 │   │   ├── UserCommunicationFramework.psm1  # User notifications and guides
+│   │   ├── LockScreenGuidance.psm1   # Lock screen customization during migration
 │   │   ├── RollbackMechanism.psm1    # Migration recovery and rollback
 │   │   └── WorkspaceOneWizard.psm1   # GUI interface (supports silent mode)
 │   ├── scripts/                      # PowerShell scripts
@@ -70,6 +72,8 @@ ws1-to-azure-migration/
 │   ├── LoggingModule.md
 │   ├── ValidationTool.md
 │   ├── MigrationTools.md
+│   ├── LockScreenGuidance.md
+│   ├── ApplicationDataMigration.md
 │   └── PrivilegeManagement.md
 ├── archived/                         # Previous migration scripts 
 └── README.md                         # This file
@@ -104,6 +108,17 @@ Provides comprehensive communication with end users during the migration process
 - **Customizable Branding**: Company-specific branding for all user communications
 - **Silent Operation Support**: Operates in silent mode for unattended migrations
 
+### Lock Screen Guidance
+
+Customizes the Windows lock screen to provide contextual guidance during migration:
+
+- **Stage-aware Messaging**: Updates lock screen content based on migration progress
+- **Visual Progress Indicators**: Shows progress bars and status during migration
+- **Corporate Branding**: Incorporates company logo and color schemes
+- **User Action Prompts**: Clear instructions when user input is required
+- **HTML Templates**: Customizable HTML-based templates for each migration stage
+- **Automatic Restoration**: Reverts to original lock screen after migration completes
+
 ### Logging
 
 Comprehensive logging for troubleshooting:
@@ -131,6 +146,16 @@ Handles the complex task of migrating user profiles between management systems:
 - **Data Preservation**: Ensures no user data is lost during migration
 - **Special Folders Handling**: Properly manages special Windows folders and libraries
 - **SID Mapping**: Tracks and maps user SIDs between environments
+
+### Application Data Migration
+
+Provides comprehensive migration of application-specific settings for seamless user experience:
+
+- **Outlook Profiles**: Migrates PST files, signatures, templates, and account settings
+- **Browser Data**: Transfers bookmarks, cookies, extensions, and saved passwords
+- **Credential Vault**: Preserves stored credentials and handles passkeys
+- **Cross-User Migration**: Supports transferring settings between different user accounts
+- **Secure Handling**: Ensures sensitive data is managed securely during migration
 
 ### Silent Operation
 

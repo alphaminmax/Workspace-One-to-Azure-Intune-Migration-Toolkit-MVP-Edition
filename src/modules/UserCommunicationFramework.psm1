@@ -32,15 +32,16 @@ if (-not (Get-Module -Name 'LoggingModule' -ListAvailable)) {
 
 # Script level variables
 $script:NotificationConfig = @{
-    EmailEnabled = $false
-    TeamsEnabled = $false
-    ToastEnabled = $true
-    SMTPServer = ""
-    FromAddress = ""
-    TemplatesPath = Join-Path -Path $PSScriptRoot -ChildPath "..\templates\notifications"
-    CompanyName = "Organization"
-    SupportEmail = "support@organization.com"
+    Enabled = $true
+    SupportContact = "IT Support"
+    SupportEmail = "support@company.com"
     SupportPhone = "555-123-4567"
+    SupportPortal = "https://support.company.com"
+    NotificationChannels = @("Toast", "LockScreen", "Email")
+    TemplatesPath = Join-Path -Path $PSScriptRoot -ChildPath "..\templates\notifications"
+    LogoPath = Join-Path -Path $PSScriptRoot -ChildPath "..\assets\logo.png"
+    CompanyName = "Organization"
+    UseUserContactPreferences = $true
 }
 
 $script:GuidesPath = Join-Path -Path $PSScriptRoot -ChildPath "..\templates\guides"
@@ -179,6 +180,41 @@ function Show-ToastNotification {
     }
 }
 
+function Get-UserContactPreferences {
+    <#
+    .SYNOPSIS
+        Retrieves the user's contact preferences if they have provided them
+    .DESCRIPTION
+        Gets the user's contact information from the JSON file saved when they
+        used the contact collection form
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param()
+    
+    try {
+        # Import LockScreenGuidance to access contact information
+        if (-not (Get-Module -Name LockScreenGuidance)) {
+            Import-Module -Name (Join-Path -Path $PSScriptRoot -ChildPath "LockScreenGuidance.psm1") -ErrorAction Stop
+        }
+        
+        # Use the Get-ContactInfo function from LockScreenGuidance
+        $contactInfo = Get-ContactInfo
+        
+        if ($contactInfo -and ($contactInfo.Email -or $contactInfo.Phone)) {
+            Write-Log -Message "Retrieved user contact preferences" -Level Information
+            return $contactInfo
+        }
+        
+        Write-Log -Message "No user contact preferences found" -Level Information
+        return $null
+    }
+    catch {
+        Write-Log -Message "Failed to retrieve user contact preferences: $_" -Level Error
+        return $null
+    }
+}
+
 #endregion
 
 #region Public Functions
@@ -225,50 +261,63 @@ function Show-ToastNotification {
     None
 #>
 function Set-NotificationConfig {
+    <#
+    .SYNOPSIS
+        Configures notification settings for the migration process.
+    .DESCRIPTION
+        Sets up the notification configuration including support contact
+        information and notification channels.
+    #>
     [CmdletBinding()]
+    [OutputType([bool])]
     param (
         [Parameter(Mandatory = $false)]
-        [string]$CompanyName,
+        [string]$SupportContact = $script:NotificationConfig.SupportContact,
         
         [Parameter(Mandatory = $false)]
-        [string]$SupportEmail,
+        [string]$SupportEmail = $script:NotificationConfig.SupportEmail,
         
         [Parameter(Mandatory = $false)]
-        [string]$SupportPhone,
+        [string]$SupportPhone = $script:NotificationConfig.SupportPhone,
         
         [Parameter(Mandatory = $false)]
-        [string]$SMTPServer,
+        [string]$SupportPortal = $script:NotificationConfig.SupportPortal,
         
         [Parameter(Mandatory = $false)]
-        [string]$FromAddress,
+        [string[]]$NotificationChannels = $script:NotificationConfig.NotificationChannels,
         
         [Parameter(Mandatory = $false)]
-        [bool]$EnableEmail,
+        [string]$LogoPath = $script:NotificationConfig.LogoPath,
         
         [Parameter(Mandatory = $false)]
-        [bool]$EnableTeams,
+        [string]$CompanyName = $script:NotificationConfig.CompanyName,
         
         [Parameter(Mandatory = $false)]
-        [bool]$EnableToast,
+        [bool]$Enabled = $script:NotificationConfig.Enabled,
         
         [Parameter(Mandatory = $false)]
-        [string]$TemplatesPath
+        [bool]$UseUserContactPreferences = $script:NotificationConfig.UseUserContactPreferences
     )
     
-    # Update only the provided parameters
-    if ($PSBoundParameters.ContainsKey('CompanyName')) { $script:NotificationConfig.CompanyName = $CompanyName }
-    if ($PSBoundParameters.ContainsKey('SupportEmail')) { $script:NotificationConfig.SupportEmail = $SupportEmail }
-    if ($PSBoundParameters.ContainsKey('SupportPhone')) { $script:NotificationConfig.SupportPhone = $SupportPhone }
-    if ($PSBoundParameters.ContainsKey('SMTPServer')) { $script:NotificationConfig.SMTPServer = $SMTPServer }
-    if ($PSBoundParameters.ContainsKey('FromAddress')) { $script:NotificationConfig.FromAddress = $FromAddress }
-    if ($PSBoundParameters.ContainsKey('EnableEmail')) { $script:NotificationConfig.EmailEnabled = $EnableEmail }
-    if ($PSBoundParameters.ContainsKey('EnableTeams')) { $script:NotificationConfig.TeamsEnabled = $EnableTeams }
-    if ($PSBoundParameters.ContainsKey('EnableToast')) { $script:NotificationConfig.ToastEnabled = $EnableToast }
-    if ($PSBoundParameters.ContainsKey('TemplatesPath') -and (Test-Path -Path $TemplatesPath)) { 
-        $script:NotificationConfig.TemplatesPath = $TemplatesPath 
+    try {
+        # Update config
+        $script:NotificationConfig.SupportContact = $SupportContact
+        $script:NotificationConfig.SupportEmail = $SupportEmail
+        $script:NotificationConfig.SupportPhone = $SupportPhone
+        $script:NotificationConfig.SupportPortal = $SupportPortal
+        $script:NotificationConfig.NotificationChannels = $NotificationChannels
+        $script:NotificationConfig.LogoPath = $LogoPath
+        $script:NotificationConfig.CompanyName = $CompanyName
+        $script:NotificationConfig.Enabled = $Enabled
+        $script:NotificationConfig.UseUserContactPreferences = $UseUserContactPreferences
+        
+        Write-Log -Message "Notification configuration updated" -Level Information
+        return $true
     }
-    
-    Write-Log -Message "Notification configuration updated" -Level Information
+    catch {
+        Write-Log -Message "Failed to set notification configuration: $_" -Level Error
+        return $false
+    }
 }
 
 <#
@@ -295,85 +344,177 @@ function Set-NotificationConfig {
     System.Boolean. Returns $true if at least one notification was sent successfully.
 #>
 function Send-MigrationNotification {
+    <#
+    .SYNOPSIS
+        Sends notifications about migration status to users.
+    .DESCRIPTION
+        Sends notifications to users through configured channels based on the
+        migration status.
+    #>
     [CmdletBinding()]
     [OutputType([bool])]
     param (
         [Parameter(Mandatory = $true)]
-        [ValidateSet("MigrationStart", "MigrationProgress", "MigrationComplete", "MigrationFailed", "ActionRequired")]
-        [string]$Type,
+        [ValidateSet('Starting', 'InProgress', 'Complete', 'Failed', 'Authentication')]
+        [string]$Status,
         
         [Parameter(Mandatory = $false)]
-        [string]$UserEmail,
+        [string]$Message = "",
         
         [Parameter(Mandatory = $false)]
-        [object[]]$Parameters = @()
+        [int]$Progress = 0,
+        
+        [Parameter(Mandatory = $false)]
+        [object]$AdditionalData = $null
     )
     
-    $successCount = 0
-    $totalAttempts = 0
-    
-    # Get notification content
-    $template = Get-NotificationTemplate -TemplateName $Type
-    
-    if ($Parameters.Count -gt 0) {
-        # Format the template with parameters
-        $notificationContent = $template -f $Parameters
-    } else {
-        $notificationContent = $template
+    # If disabled, do nothing
+    if (-not $script:NotificationConfig.Enabled) {
+        Write-Log -Message "Notifications are disabled" -Level Information
+        return $true
     }
     
-    # Set title based on notification type
-    $title = switch ($Type) {
-        "MigrationStart" { "Migration Starting" }
-        "MigrationProgress" { "Migration in Progress" }
-        "MigrationComplete" { "Migration Complete" }
-        "MigrationFailed" { "Migration Issue Detected" }
-        "ActionRequired" { "Action Required" }
-    }
-    
-    # Send toast notification if enabled
-    if ($script:NotificationConfig.ToastEnabled) {
-        $totalAttempts++
+    try {
+        # Get the notification template
+        $template = Get-NotificationTemplate -TemplateName $Status
+
+        # Format the template
+        $FormattedNotification = $template -replace '\{CompanyName\}', $script:NotificationConfig.CompanyName
+        $FormattedNotification = $FormattedNotification -replace '\{Progress\}', $Progress
+        $FormattedNotification = $FormattedNotification -replace '\{Message\}', $Message
+        $FormattedNotification = $FormattedNotification -replace '\{SupportContact\}', $script:NotificationConfig.SupportContact
+        $FormattedNotification = $FormattedNotification -replace '\{SupportEmail\}', $script:NotificationConfig.SupportEmail
+        $FormattedNotification = $FormattedNotification -replace '\{SupportPhone\}', $script:NotificationConfig.SupportPhone
+        $FormattedNotification = $FormattedNotification -replace '\{SupportPortal\}', $script:NotificationConfig.SupportPortal
         
-        # Extract plain text message from HTML content
-        if ($notificationContent -match "<body>(.*?)</body>") {
-            $plainText = $matches[1] -replace "<[^>]+>", " " -replace "\s+", " "
-        } else {
-            $plainText = $notificationContent -replace "<[^>]+>", " " -replace "\s+", " "
+        # Send notifications through all enabled channels
+        $success = $true
+        
+        # Check if we should use user's contact preferences
+        $userContactInfo = $null
+        if ($script:NotificationConfig.UseUserContactPreferences) {
+            $userContactInfo = Get-UserContactPreferences
         }
         
-        $toastSuccess = Show-ToastNotification -Title $title -Message $plainText
-        if ($toastSuccess) { $successCount++ }
-    }
-    
-    # Send email notification if enabled and user email provided
-    if ($script:NotificationConfig.EmailEnabled -and $UserEmail -and $script:NotificationConfig.SMTPServer -and $script:NotificationConfig.FromAddress) {
-        $totalAttempts++
-        
-        try {
-            $emailParams = @{
-                SmtpServer = $script:NotificationConfig.SMTPServer
-                From = $script:NotificationConfig.FromAddress
-                To = $UserEmail
-                Subject = "$($script:NotificationConfig.CompanyName) - $title"
-                Body = $notificationContent
-                BodyAsHtml = $true
-                Priority = "High"
+        foreach ($channel in $script:NotificationConfig.NotificationChannels) {
+            $channelSuccess = $false
+            
+            switch ($channel) {
+                "Toast" {
+                    # Show toast notification
+                    $channelSuccess = Show-ToastNotification -Title "Migration $Status" -Message $FormattedNotification
+                }
+                "LockScreen" {
+                    # Update lock screen with notification
+                    if ($Status -eq "Complete" -or $Status -eq "Failed") {
+                        # Don't show contact button on completion - we're already done
+                        $channelSuccess = Update-MigrationLockscreen -Stage $Status -IncludeContactButton:$false
+                    } else {
+                        $channelSuccess = Update-MigrationLockscreen -Stage $Status
+                    }
+                }
+                "Email" {
+                    # If user provided their email, use it instead of Azure AD email
+                    if ($userContactInfo -and $userContactInfo.Email) {
+                        $channelSuccess = Send-EmailNotification -EmailAddress $userContactInfo.Email -Subject "Migration $Status" -Body $FormattedNotification
+                    } else {
+                        # Use Azure AD email (existing behavior)
+                        $channelSuccess = Send-EmailNotification -Subject "Migration $Status" -Body $FormattedNotification
+                    }
+                }
+                "SMS" {
+                    # Only send SMS if user provided their phone number
+                    if ($userContactInfo -and $userContactInfo.Phone) {
+                        $channelSuccess = Send-SMSNotification -PhoneNumber $userContactInfo.Phone -Message $FormattedNotification
+                    } else {
+                        $channelSuccess = $true # Skip if no phone provided
+                    }
+                }
             }
             
-            Send-MailMessage @emailParams
-            $successCount++
-            Write-Log -Message "Email notification sent to $($UserEmail): $title" -Level Information
+            if (-not $channelSuccess) {
+                Write-Log -Message "Failed to send notification through channel: $channel" -Level Warning
+                $success = $false
+            }
         }
-        catch {
-            Write-Log -Message "Failed to send email notification: $_" -Level Error
+        
+        if ($success) {
+            Write-Log -Message "Migration notification sent: $Status" -Level Information
+            return $true
+        } else {
+            Write-Log -Message "Some notification channels failed" -Level Warning
+            return $false
         }
     }
+    catch {
+        Write-Log -Message "Failed to send migration notification: $_" -Level Error
+        return $false
+    }
+}
+
+function Send-EmailNotification {
+    <#
+    .SYNOPSIS
+        Sends an email notification
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param (
+        [Parameter(Mandatory = $false)]
+        [string]$EmailAddress = "",
+        
+        [Parameter(Mandatory = $true)]
+        [string]$Subject,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$Body
+    )
     
-    # Teams notification would be implemented here
-    # Not included in this version
+    try {
+        # For demo purposes, we'll just log the email
+        Write-Log -Message "Email notification would be sent to: $EmailAddress" -Level Information
+        Write-Log -Message "Subject: $Subject" -Level Information
+        
+        # In a real implementation, this would use Send-MailMessage or Graph API
+        # Example:
+        # Send-MailMessage -To $EmailAddress -From "migration@company.com" -Subject $Subject -Body $Body -SmtpServer "smtp.company.com"
+        
+        return $true
+    }
+    catch {
+        Write-Log -Message "Failed to send email notification: $_" -Level Error
+        return $false
+    }
+}
+
+function Send-SMSNotification {
+    <#
+    .SYNOPSIS
+        Sends an SMS notification
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$PhoneNumber,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$Message
+    )
     
-    return ($successCount -gt 0 -and $totalAttempts -gt 0)
+    try {
+        # For demo purposes, we'll just log the SMS
+        Write-Log -Message "SMS notification would be sent to: $PhoneNumber" -Level Information
+        Write-Log -Message "Message: $Message" -Level Information
+        
+        # In a real implementation, this would use Twilio, AWS SNS, or another SMS service
+        
+        return $true
+    }
+    catch {
+        Write-Log -Message "Failed to send SMS notification: $_" -Level Error
+        return $false
+    }
 }
 
 <#

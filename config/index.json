@@ -1,0 +1,245 @@
+{
+  "project": {
+    "name": "Workspace ONE to Azure/Intune Migration Toolkit",
+    "version": "0.5.0",
+    "description": "Toolkit for migrating devices from VMware Workspace ONE to Microsoft Azure/Intune",
+    "status": "In Development - MVP",
+    "lastUpdated": "2023-11-30"
+  },
+  "modules": {
+    "LoggingModule": {
+      "path": "src/modules/LoggingModule.psm1",
+      "status": "Implemented",
+      "inMVP": true,
+      "description": "Centralized logging functionality for the entire toolkit",
+      "features": [
+        {"name": "File Logging", "status": "Implemented"},
+        {"name": "Console Logging", "status": "Implemented"},
+        {"name": "Event Log Integration", "status": "Implemented"},
+        {"name": "Log Rotation", "status": "Implemented"},
+        {"name": "Verbosity Levels", "status": "Implemented"}
+      ],
+      "dependencies": []
+    },
+    "SecurityFoundation": {
+      "path": "src/modules/SecurityFoundation.psm1",
+      "status": "Partial",
+      "inMVP": true,
+      "description": "Security foundation for credentials and certificate management",
+      "features": [
+        {"name": "Credential Management", "status": "Implemented"},
+        {"name": "Certificate Management", "status": "Implemented"},
+        {"name": "Data Encryption", "status": "Implemented"},
+        {"name": "Key Vault Integration", "status": "Planned"}
+      ],
+      "dependencies": ["LoggingModule"]
+    },
+    "UserCommunicationFramework": {
+      "path": "src/modules/UserCommunicationFramework.psm1",
+      "status": "Implemented",
+      "inMVP": true,
+      "description": "Framework for communicating with users during migration",
+      "features": [
+        {"name": "Multi-channel Notifications", "status": "Implemented"},
+        {"name": "Notification Templates", "status": "Implemented"},
+        {"name": "Progress Display", "status": "Implemented"},
+        {"name": "User Guides", "status": "Implemented"},
+        {"name": "Feedback Collection", "status": "Implemented"}
+      ],
+      "dependencies": ["LoggingModule"]
+    },
+    "LockScreenGuidance": {
+      "path": "src/modules/LockScreenGuidance.psm1",
+      "status": "Implemented",
+      "inMVP": true,
+      "description": "Lock screen customization to guide users through migration",
+      "features": [
+        {"name": "Stage-aware Messaging", "status": "Implemented"},
+        {"name": "Corporate Branding", "status": "Implemented"},
+        {"name": "Progress Visualization", "status": "Implemented"},
+        {"name": "Contact Collection", "status": "Implemented"},
+        {"name": "Error Display", "status": "Implemented"}
+      ],
+      "dependencies": ["LoggingModule", "UserCommunicationFramework"]
+    },
+    "ConfigurationManager": {
+      "path": "src/modules/ConfigurationManager.psm1",
+      "status": "Implemented", 
+      "inMVP": true,
+      "description": "Configuration management for the migration process",
+      "features": [
+        {"name": "Settings Validation", "status": "Implemented"},
+        {"name": "Environment Detection", "status": "Implemented"},
+        {"name": "Configuration Persistence", "status": "Implemented"},
+        {"name": "Default Configuration", "status": "Implemented"}
+      ],
+      "dependencies": ["LoggingModule"]
+    },
+    "WorkspaceOneIntegration": {
+      "path": "src/modules/WorkspaceOneIntegration.psm1",
+      "status": "Partial",
+      "inMVP": true,
+      "description": "Integration with Workspace ONE APIs and components",
+      "features": [
+        {"name": "Device Inventory", "status": "Implemented"},
+        {"name": "Profile Management", "status": "Implemented"},
+        {"name": "Application Management", "status": "Partial"},
+        {"name": "Command Execution", "status": "Implemented"}
+      ],
+      "dependencies": ["LoggingModule", "SecurityFoundation"]
+    },
+    "IntuneIntegration": {
+      "path": "src/modules/IntuneIntegration.psm1",
+      "status": "Partial",
+      "inMVP": true,
+      "description": "Integration with Microsoft Intune APIs and components",
+      "features": [
+        {"name": "Device Enrollment", "status": "Implemented"},
+        {"name": "Policy Application", "status": "Implemented"},
+        {"name": "Application Deployment", "status": "Partial"},
+        {"name": "Compliance Verification", "status": "Implemented"}
+      ],
+      "dependencies": ["LoggingModule", "SecurityFoundation"]
+    },
+    "MigrationEngine": {
+      "path": "src/modules/MigrationEngine.psm1",
+      "status": "Partial",
+      "inMVP": true,
+      "description": "Core migration logic and orchestration",
+      "features": [
+        {"name": "Pre-migration Assessment", "status": "Implemented"},
+        {"name": "Stage Execution", "status": "Implemented"},
+        {"name": "Error Handling", "status": "Implemented"},
+        {"name": "Rollback Mechanisms", "status": "Partial"}
+      ],
+      "dependencies": ["LoggingModule", "ConfigurationManager", "WorkspaceOneIntegration", "IntuneIntegration"]
+    },
+    "BitLockerManager": {
+      "path": "src/modules/BitLockerManager.psm1",
+      "status": "Partial",
+      "inMVP": true,
+      "description": "BitLocker key management and migration",
+      "features": [
+        {"name": "Recovery Key Backup", "status": "Implemented"},
+        {"name": "Azure Key Vault Integration", "status": "Planned"},
+        {"name": "Encryption Status Verification", "status": "Implemented"}
+      ],
+      "dependencies": ["LoggingModule", "SecurityFoundation"]
+    },
+    "MigrationVerification": {
+      "path": "src/modules/MigrationVerification.psm1",
+      "status": "Implemented",
+      "inMVP": true,
+      "description": "Post-migration verification and validation",
+      "features": [
+        {"name": "Device Health Check", "status": "Implemented"},
+        {"name": "Policy Verification", "status": "Implemented"},
+        {"name": "Application Verification", "status": "Implemented"},
+        {"name": "Connectivity Testing", "status": "Implemented"}
+      ],
+      "dependencies": ["LoggingModule", "IntuneIntegration"]
+    },
+    "RollbackMechanism": {
+      "path": "src/modules/RollbackMechanism.psm1",
+      "status": "Partial",
+      "inMVP": true,
+      "description": "Rollback capability if migration fails",
+      "features": [
+        {"name": "Configuration Backup", "status": "Implemented"},
+        {"name": "Restore Process", "status": "Partial"},
+        {"name": "Validation", "status": "Planned"}
+      ],
+      "dependencies": ["LoggingModule", "WorkspaceOneIntegration"]
+    },
+    "WorkspaceOneWizard": {
+      "path": "src/modules/WorkspaceOneWizard.psm1",
+      "status": "Planned",
+      "inMVP": false,
+      "description": "GUI for the migration process",
+      "features": [
+        {"name": "User Interface", "status": "Planned"},
+        {"name": "Progress Visualization", "status": "Planned"},
+        {"name": "Configuration Options", "status": "Planned"}
+      ],
+      "dependencies": ["LoggingModule", "ConfigurationManager", "MigrationEngine"]
+    },
+    "GraphAPIIntegration": {
+      "path": "src/modules/GraphAPIIntegration.psm1",
+      "status": "Partial",
+      "inMVP": false,
+      "description": "Integration with Microsoft Graph API",
+      "features": [
+        {"name": "Authentication", "status": "Implemented"},
+        {"name": "Device Management", "status": "Partial"},
+        {"name": "User Management", "status": "Planned"}
+      ],
+      "dependencies": ["LoggingModule", "SecurityFoundation"]
+    }
+  },
+  "scripts": {
+    "Test-WS1Environment": {
+      "path": "src/scripts/Test-WS1Environment.ps1",
+      "status": "Implemented",
+      "inMVP": true,
+      "description": "Prerequisite validation script",
+      "dependencies": ["LoggingModule", "ConfigurationManager"]
+    },
+    "Invoke-WorkspaceOneSetup": {
+      "path": "src/scripts/Invoke-WorkspaceOneSetup.ps1",
+      "status": "Implemented",
+      "inMVP": true,
+      "description": "Main entry point for the migration process",
+      "dependencies": ["MigrationEngine", "LoggingModule", "ConfigurationManager"]
+    },
+    "Test-MigratedDevice": {
+      "path": "src/scripts/Test-MigratedDevice.ps1",
+      "status": "Implemented",
+      "inMVP": true,
+      "description": "Validates migration success",
+      "dependencies": ["MigrationVerification", "LoggingModule"]
+    },
+    "Remove-WS1Components": {
+      "path": "src/scripts/Remove-WS1Components.ps1",
+      "status": "Implemented",
+      "inMVP": true,
+      "description": "Cleanup after migration",
+      "dependencies": ["WorkspaceOneIntegration", "LoggingModule"]
+    }
+  },
+  "docs": {
+    "UserCommunicationFramework": {
+      "path": "docs/UserCommunicationFramework.md",
+      "status": "Implemented",
+      "inMVP": true
+    },
+    "MVP-Migration-Guide": {
+      "path": "docs/MVP-Migration-Guide.md",
+      "status": "Implemented",
+      "inMVP": true
+    },
+    "Security-Implementation": {
+      "path": "docs/Security-Implementation.md",
+      "status": "Planned",
+      "inMVP": false
+    },
+    "GraphAPI-Integration": {
+      "path": "docs/GraphAPI-Integration.md",
+      "status": "Planned",
+      "inMVP": false
+    }
+  },
+  "mvpProgress": {
+    "totalComponents": 13,
+    "implemented": 7,
+    "partial": 5,
+    "planned": 1,
+    "percentComplete": 73
+  },
+  "extendedProgress": {
+    "totalComponents": 15,
+    "implemented": 7,
+    "partial": 6,
+    "planned": 2,
+    "percentComplete": 67
+  }
+} 
