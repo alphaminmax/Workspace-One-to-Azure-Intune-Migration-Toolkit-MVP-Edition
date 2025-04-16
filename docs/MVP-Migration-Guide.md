@@ -26,26 +26,24 @@ This guide provides essential information for getting started with the Workspace
    - Migration progress dialogs
    - Feedback collection forms
 
-## Quick Setup Process
+## Quick Setup
 
-1. **Clone the repository**
+1. Clone or download the repository to your admin workstation:
    ```powershell
-   git clone https://github.com/organization/WS1-Migration-Toolkit.git
+   git clone https://github.com/alphaminmax/Workspace-One-to-Azure-Intune-Migration-Toolkit-MVP-Edition.git
    cd WS1-Migration-Toolkit
    ```
 
-2. **Configure environment**
-   - Create a `.env` file in the root directory with your environment-specific settings
-   - Use the `.env.example` file as a template
-
-3. **Verify prerequisites**
+2. Create and configure your environment file:
    ```powershell
-   .\Test-WS1Environment.ps1
+   Copy-Item .env.template .env
+   notepad .env
    ```
+   See the [Configuration](#configuration) section below for details on setting up your `.env` file.
 
-4. **Run the migration script**
+3. Run as administrator:
    ```powershell
-   .\Start-Migration.ps1
+   .\src\scripts\Invoke-WorkspaceOneSetup.ps1 -UseEnvFile -EnvFilePath ".\.env"
    ```
 
 ## Core Capabilities
@@ -106,28 +104,53 @@ The MVP version has the following limitations compared to the full toolkit:
 4. **Manual interventions required** - For complex migration scenarios
 5. **Limited scalability** - Designed for deployments under 500 devices
 
-## Environment Configuration
+## Configuration
 
-The toolkit uses environment variables for configuration, which can be set in a `.env` file. For more information, see [Environment Configuration](Environment-Configuration.md).
+The toolkit uses environment variables stored in a `.env` file for configuration. This approach provides better security by separating credentials from code.
 
-Key variables include:
+### Setup Process
 
-```
-# Authentication
-WS1_AUTH_ENDPOINT=https://example.com/auth
-WS1_CLIENT_ID=your_client_id_here
-WS1_CLIENT_SECRET=your_client_secret_here
+1. **Copy the template file**:
+   ```powershell
+   Copy-Item .env.template .env
+   ```
 
-# Workspace ONE
-WS1_API_ENDPOINT=https://as123.awmdm.com/api
-WS1_ADMIN_USERNAME=administrator
-WS1_TENANT_CODE=your_tenant_code
+2. **Edit the `.env` file** with your specific values:
+   ```
+   # Basic Configuration
+   WS1_ENROLLMENT_SERVER=https://your-ws1-server.com
+   WS1_INTUNE_INTEGRATION_ENABLED=true
+   WS1_LOG_LEVEL=INFO
+   WS1_ORGANIZATION_NAME=Your Organization
+   WS1_HELPDESK_PHONE=Your-Support-Number
+   WS1_HELPDESK_EMAIL=your-support@example.com
+   
+   # Azure AD/Intune Credentials
+   AZURE_CLIENT_ID=your-client-id
+   AZURE_CLIENT_SECRET=your-client-secret
+   AZURE_TENANT_ID=your-tenant-id
+   AZURE_TENANT_NAME=yourtenant.onmicrosoft.com
+   
+   # Workspace ONE Credentials
+   WS1_HOST=yourcompany.awmdm.com
+   WS1_USERNAME=ws1admin
+   WS1_PASSWORD=your-ws1-password
+   WS1_API_KEY=your-api-key
+   
+   # Migration Settings
+   BITLOCKER_METHOD=MIGRATE
+   LOCAL_PATH=C:\\ProgramData\\IntuneMigration
+   LOG_PATH=C:\\Temp\\Logs
+   REG_PATH=HKLM\\SOFTWARE\\IntuneMigration
+   GROUP_TAG=WS1_Migrated
+   ```
 
-# Intune
-INTUNE_TENANT_ID=your_tenant_id
-INTUNE_APP_ID=your_app_id
-INTUNE_APP_SECRET=your_app_secret
-```
+3. **Initialize with the `.env` file**:
+   ```powershell
+   .\src\scripts\Invoke-WorkspaceOneSetup.ps1 -UseEnvFile -EnvFilePath ".\.env"
+   ```
+
+For comprehensive guidance on environment configuration, see [Environment Configuration](Environment-Configuration.md).
 
 ## Troubleshooting Common Issues
 
@@ -180,8 +203,7 @@ After successfully implementing the MVP toolkit, consider these enhancements:
 
 - **Documentation**: Full documentation is available in the `/docs` folder
 - **Issue Tracking**: Report issues via the project's GitHub Issues
-- **Community Forum**: Join discussions at https://community.example.com/ws1migration
-- **Email Support**: mvp-support@example.com
+
 
 ---
 
@@ -217,50 +239,6 @@ The MVP toolkit includes the following essential components:
 ### UI Components
 
 - **Basic Dashboard**: Simple HTML-based interface for migration status
-
-## Quick Setup
-
-1. Clone or download the repository to your admin workstation
-2. Ensure PowerShell 5.1 or higher is installed
-3. Run as administrator: `.\src\scripts\Invoke-WorkspaceOneSetup.ps1`
-
-## Configuration
-
-Edit the `config/WS1Config.json` file to set your environment-specific parameters:
-
-```json
-{
-    "EnrollmentServer": "https://your-ws1-server.com",
-    "IntuneIntegrationEnabled": true,
-    "LogLevel": "INFO",
-    "OrganizationName": "Your Organization",
-    "HelpDeskPhoneNumber": "Your-Support-Number",
-    "HelpDeskEmail": "your-support@example.com"
-}
-```
-
-### Secure Credential Handling
-
-The MVP toolkit now includes comprehensive credential management through the SecureCredentialProvider module with optional Azure Key Vault integration:
-
-1. **Multiple storage options**:
-   - Azure Key Vault (recommended for production)
-   - Encrypted local files using the Windows Data Protection API
-   - Environment variables (for development/testing only)
-   
-2. **Implementation options**:
-   ```powershell
-   # Initialize with Azure Key Vault
-   Initialize-CredentialProvider -KeyVaultName "MyMigrationKeyVault" -UseManagedIdentity $true
-   
-   # Or initialize with local secure storage
-   Initialize-CredentialProvider -LocalStoragePath "C:\MigrationData\Credentials"
-   ```
-
-For comprehensive guidance on credential management, refer to:
-- [Secure Credential Provider Documentation](SecureCredentialProvider.md)
-- [Key Vault Integration Guide](KeyVaultIntegration.md)
-- [Security Foundation Documentation](SecurityFoundation.md)
 
 ## Migration Process
 
@@ -337,56 +315,3 @@ This will:
 - Confirm required apps installation
 - Verify authentication configuration
 - Generate an HTML report if requested
-
-## Limitations
-
-The MVP toolkit has some limitations compared to the full enterprise version:
-
-- Limited reporting and analytics
-- Basic rollback functionality (no advanced recovery)
-- Simplified user experience without portal access
-- No automation for large-scale deployments
-- Limited integrations with external systems
-
-## Future Enhancements
-
-The MVP can be extended with additional features as needs grow:
-
-- Advanced telemetry and analytics
-- Enhanced security features
-- Scaling capabilities for larger deployments
-- Integration with service management platforms
-- Multi-platform support
-- Expanded fallback authentication methods
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Module not found errors**:
-   - Ensure all modules are in the correct path: `src/modules/`
-
-2. **Permission issues**:
-   - Run all scripts as administrator
-   - Authentication Transition Manager requires admin rights to modify credential providers
-
-3. **Connectivity failures**:
-   - Verify network connectivity to Workspace ONE and Azure endpoints
-   - Check firewall settings
-
-4. **Authentication problems**:
-   - Review credential provider settings
-   - Use `Restore-CredentialProviderSettings` to revert problematic changes
-   - Ensure fallback authentication is enabled
-
-5. **Migration failures**:
-   - Review logs in the `C:\Temp\Logs` directory
-   - Run `Test-MigratedDevice.ps1` to identify specific issues
-
-6. **Key Vault access issues**:
-   - Verify network connectivity to Azure
-   - Check permissions and service principal configuration
-   - Review Azure Key Vault access policies
-   - Use `Test-KeyVaultIntegration.ps1` to diagnose issues
-
-For detailed troubleshooting, check the logs generated during each step of the process. 
