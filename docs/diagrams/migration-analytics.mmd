@@ -1,0 +1,50 @@
+%%{init: {'theme': 'default', 'themeVariables': { 'primaryColor': '#006400', 'fontSize': '14px'}}}%%
+flowchart TD
+    A[Start Analytics Collection] --> B[Initialize Analytics Engine]
+    B --> C[Load Configuration Settings]
+    C --> D[Connect to Data Sources]
+    
+    D --> E{Connection Successful?}
+    E -->|Yes| F[Determine Analytics Scope]
+    E -->|No| G[Log Connection Failure]
+    G --> H[Attempt Reconnection]
+    H --> I{Retry Successful?}
+    I -->|Yes| F
+    I -->|No| J[Use Cached Data if Available]
+    J --> K{Cached Data Exists?}
+    K -->|Yes| F
+    K -->|No| L[Log Critical Error]
+    L --> Z[End Analytics: Failed]
+    
+    F --> M[Begin Data Collection]
+    M --> N[Collect Pre-Migration Metrics]
+    N --> O[Collect During-Migration Metrics]
+    O --> P[Collect Post-Migration Metrics]
+    
+    P --> Q[Process Raw Data]
+    Q --> R[Apply Analytics Rules]
+    R --> S[Generate Migration Insights]
+    
+    S --> T[Calculate Success Metrics]
+    T --> U[Calculate Time Metrics]
+    U --> V[Calculate Error Rates]
+    V --> W[Calculate Compliance Status]
+    
+    W --> X[Format Data for Reporting]
+    X --> Y[Generate Reports]
+    Y --> AA{Export Format}
+    
+    AA -->|Dashboard| AB[Update Live Dashboard]
+    AA -->|PDF| AC[Generate PDF Report]
+    AA -->|CSV| AD[Export CSV Data]
+    AA -->|JSON| AE[Export JSON Data]
+    
+    AB --> AF[Store Analytics Data]
+    AC --> AF
+    AD --> AF
+    AE --> AF
+    
+    AF --> AG[Archive Historical Data]
+    AG --> AH[Apply Data Retention Policy]
+    AH --> AI[Trigger Notifications if Needed]
+    AI --> AJ[End Analytics: Success] 

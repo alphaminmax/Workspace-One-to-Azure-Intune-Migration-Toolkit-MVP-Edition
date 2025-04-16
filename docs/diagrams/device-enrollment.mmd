@@ -1,0 +1,66 @@
+flowchart TB
+    Start([Start Device Enrollment]) --> CheckEligible{Device Eligible?}
+    
+    CheckEligible -->|Yes| CheckExisting{Already Enrolled?}
+    CheckEligible -->|No| NotEligible[Not Eligible for Enrollment]
+    NotEligible --> EndFail([End: Failed])
+    
+    CheckExisting -->|No| PreReqs{Prerequisites Met?}
+    CheckExisting -->|Yes| AlreadyEnrolled[Device Already Enrolled]
+    AlreadyEnrolled --> CheckCompliance
+    
+    PreReqs -->|No| InstallPreReqs[Install Prerequisites]
+    PreReqs -->|Yes| PrepareEnrollment[Prepare for Enrollment]
+    
+    InstallPreReqs --> PrepareEnrollment
+    
+    PrepareEnrollment --> AuthUser{User Authentication}
+    
+    AuthUser -->|Failed| RetryAuth{Retry?}
+    RetryAuth -->|Yes| AuthUser
+    RetryAuth -->|No| EndFail
+    
+    AuthUser -->|Success| EnrollDevice[Enroll Device in Intune]
+    
+    EnrollDevice --> JoinAAD[Join Azure AD]
+    
+    JoinAAD --> CheckStatus{Enrollment Status}
+    
+    CheckStatus -->|Failed| DiagnoseIssue[Diagnose Enrollment Issue]
+    DiagnoseIssue --> RetryEnroll{Retry Enrollment?}
+    RetryEnroll -->|Yes| EnrollDevice
+    RetryEnroll -->|No| EndFail
+    
+    CheckStatus -->|Success| InstallMDM[Install MDM Components]
+    
+    InstallMDM --> RegisterComplete[Registration Complete]
+    
+    RegisterComplete --> CheckCompliance{Compliance Check}
+    
+    CheckCompliance -->|Non-Compliant| RemediatePolicy[Remediate Policy Issues]
+    RemediatePolicy --> CheckCompliance
+    
+    CheckCompliance -->|Compliant| ApplyPolicies[Apply Device Policies]
+    
+    ApplyPolicies --> DeployApps[Deploy Required Applications]
+    
+    DeployApps --> FinalCheck{Final Verification}
+    
+    FinalCheck -->|Issues| TroubleshootEnrollment[Troubleshoot Issues]
+    TroubleshootEnrollment --> FinalCheck
+    
+    FinalCheck -->|Success| EnrollmentComplete[Enrollment Complete]
+    
+    EnrollmentComplete --> EndSuccess([End: Success])
+    
+    classDef success fill:#baffc9,stroke:#333,stroke-width:1px;
+    classDef warning fill:#ffffbf,stroke:#333,stroke-width:1px;
+    classDef danger fill:#ffb8b8,stroke:#333,stroke-width:1px;
+    classDef process fill:#f8f9fa,stroke:#333,stroke-width:1px;
+    classDef decision fill:#d8e8f9,stroke:#333,stroke-width:1px;
+    
+    class EnrollmentComplete,EndSuccess success;
+    class NotEligible,EndFail danger;
+    class DiagnoseIssue,RemediatePolicy,TroubleshootEnrollment warning;
+    class Start,PrepareEnrollment,EnrollDevice,JoinAAD,InstallMDM,RegisterComplete,ApplyPolicies,DeployApps process;
+    class CheckEligible,CheckExisting,PreReqs,AuthUser,CheckStatus,CheckCompliance,FinalCheck,RetryAuth,RetryEnroll decision; 

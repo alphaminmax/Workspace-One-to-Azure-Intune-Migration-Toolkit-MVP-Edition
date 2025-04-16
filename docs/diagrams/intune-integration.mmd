@@ -1,20 +1,118 @@
 %%{init: {'theme': 'default', 'themeVariables': { 'primaryColor': '#0078d4', 'fontSize': '14px'}}}%%
 flowchart TD
-    A[Start Intune Integration] --> B[Authenticate to Graph API]
-    B --> C{Authentication Successful?}
-    C -->|No| D[Retry Authentication]
-    D --> C
-    C -->|Yes| E[Query Device Inventory]
-    E --> F[Fetch Configuration Profiles]
-    F --> G[Analyze Current State]
-    G --> H[Apply Migration Policy]
-    H --> I{Deployment Successful?}
-    I -->|No| J[Log Error]
-    J --> K[Rollback Changes]
-    I -->|Yes| L[Verify Compliance]
-    L --> M{Device Compliant?}
-    M -->|No| N[Remediate Issues]
-    N --> L
-    M -->|Yes| O[Log Success]
-    O --> P[End: Device Managed by Intune]
-    K --> Q[End: Rollback Complete] 
+    A[Start Intune Integration] --> B[Check Intune Prerequisites]
+    B --> C{Prerequisites Met?}
+    C -->|No| D[Install Required Modules]
+    D --> E{Installation Successful?}
+    E -->|No| F[Log Module Installation Failure]
+    F --> G[End: Cannot Proceed]
+    
+    E -->|Yes| H[Verify Intune Access]
+    C -->|Yes| H
+    
+    H --> I{Intune Access Available?}
+    I -->|No| J[Prompt for Credentials]
+    J --> K[Authenticate with Graph API]
+    K --> L{Authentication Successful?}
+    L -->|No| M[Log Authentication Failure]
+    M --> N[Retry Authentication]
+    N --> O{Retry Successful?}
+    O -->|No| P[End: Authentication Failed]
+    
+    O -->|Yes| Q[Connect to Intune Service]
+    L -->|Yes| Q
+    I -->|Yes| Q
+    
+    Q --> R[Retrieve Device Information]
+    R --> S{Device Enrolled?}
+    S -->|No| T[Begin Device Enrollment]
+    T --> U{Enrollment Successful?}
+    U -->|No| V[Log Enrollment Failure]
+    V --> W[End: Enrollment Failed]
+    
+    U -->|Yes| X[Verify Enrollment Status]
+    S -->|Yes| X
+    
+    X --> Y[Sync Device Policies]
+    Y --> Z{Policy Sync Successful?}
+    Z -->|No| AA[Log Policy Sync Failure]
+    AA --> AB[Retry Policy Sync]
+    AB --> AC{Retry Successful?}
+    AC -->|No| AD[End: Policy Sync Failed]
+    
+    AC -->|Yes| AE[Apply Device Configurations]
+    Z -->|Yes| AE
+    
+    AE --> AF{Configurations Applied?}
+    AF -->|No| AG[Log Configuration Failure]
+    AG --> AH[Identify Failed Configurations]
+    AH --> AI[Apply Critical Configurations]
+    AI --> AJ{Critical Configs Applied?}
+    AJ -->|No| AK[End: Critical Config Failed]
+    
+    AJ -->|Yes| AL[Continue with Available Configs]
+    AF -->|Yes| AL
+    
+    AL --> AM[Check Compliance Status]
+    AM --> AN{Device Compliant?}
+    AN -->|No| AO[Identify Compliance Issues]
+    AO --> AP[Remediate Compliance Issues]
+    AP --> AQ{Remediation Successful?}
+    AQ -->|No| AR[Log Remediation Failure]
+    AR --> AS[End: Compliance Issues]
+    
+    AQ -->|Yes| AT[Verify Compliance Status]
+    AN -->|Yes| AT
+    
+    AT --> AU{Compliance Verified?}
+    AU -->|No| AV[Log Verification Failure]
+    AV --> AW[End: Verification Failed]
+    
+    AU -->|Yes| AX[Begin App Deployment]
+    AX --> AY[Retrieve Required Apps]
+    AY --> AZ{Apps Identified?}
+    AZ -->|No| BA[Log App Identification Failure]
+    BA --> BB[End: App Identification Failed]
+    
+    AZ -->|Yes| BC[Install Required Applications]
+    BC --> BD{Installation Successful?}
+    BD -->|No| BE[Log Installation Failures]
+    BE --> BF[Retry Critical App Installation]
+    BF --> BG{Critical Apps Installed?}
+    BG -->|No| BH[End: Critical Apps Failed]
+    
+    BG -->|Yes| BI[Continue with Available Apps]
+    BD -->|Yes| BI
+    
+    BI --> BJ[Configure App Settings]
+    BJ --> BK{Settings Applied?}
+    BK -->|No| BL[Log Settings Failure]
+    BL --> BM[Apply Default Settings]
+    BM --> BN[Continue with Default Settings]
+    
+    BK -->|Yes| BN
+    
+    BN --> BO[Verify App Functionality]
+    BO --> BP{Apps Functional?}
+    BP -->|No| BQ[Log Functionality Issues]
+    BQ --> BR[Troubleshoot App Issues]
+    BR --> BS{Issues Resolved?}
+    BS -->|No| BT[Document App Limitations]
+    BT --> BU[End: Apps Limited Functionality]
+    
+    BS -->|Yes| BV[Complete App Verification]
+    BP -->|Yes| BV
+    
+    BV --> BW[Update Device Inventory]
+    BW --> BX{Inventory Updated?}
+    BX -->|No| BY[Log Inventory Update Failure]
+    BY --> BZ[Retry Inventory Update]
+    BZ --> CA{Retry Successful?}
+    CA -->|No| CB[End: Inventory Not Updated]
+    
+    CA -->|Yes| CC[Generate Integration Report]
+    BX -->|Yes| CC
+    
+    CC --> CD[Record Successful Integration]
+    CD --> CE[Notify Integration Completion]
+    CE --> CF[End: Intune Integration Complete] 

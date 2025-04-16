@@ -4,31 +4,17 @@
 
 The BitLockerManager module provides comprehensive functionality for managing BitLocker encryption during the migration process from Workspace ONE to Intune. This module helps ensure that BitLocker recovery keys are preserved and migrated correctly to the new management platform.
 
-## Workflow Diagram
+## Workflow Diagrams
 
-The following diagram illustrates the BitLocker migration workflow:
+### BitLocker Migration Flow
 
-```mermaid
-%%{init: {'theme': 'default', 'themeVariables': { 'primaryColor': '#5a7c9d', 'fontSize': '14px'}}}%%
-flowchart TD
-A[Start BitLocker Migration] --> B[Check BitLocker Status]
-B --> C{Is BitLocker Enabled?}
-C -->|Yes| D[Backup Recovery Keys]
-C -->|No| E{Enable BitLocker?}
-E -->|Yes| F[Enable BitLocker]
-E -->|No| G[Skip BitLocker Migration]
-F --> D
-D --> H{Backup Type}
-H -->|Local| I[Backup to File]
-H -->|AzureAD| J[Backup to Azure AD]
-H -->|KeyVault| K[Backup to Key Vault]
-I --> L[Verify Backup]
-J --> L
-K --> L
-L --> M[Apply Intune BitLocker Policy]
-M --> N[BitLocker Migration Complete]
-G --> O[End Process]
-```
+The BitLocker migration workflow diagram can be found in the following file:
+[BitLocker Management Flow Diagram](diagrams/bitlocker-flow.mmd)
+
+### BitLocker Process Sequence
+
+A detailed sequence diagram showing the BitLocker management process interactions is available in:
+[BitLocker Management Sequence Diagram](diagrams/bitlocker-sequence.mmd)
 
 ## Key Features
 

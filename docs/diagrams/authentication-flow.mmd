@@ -1,0 +1,58 @@
+flowchart TD
+    A[Start Authentication] --> B[Get Authentication Method]
+    B --> C{Authentication Type?}
+    
+    C -->|Azure AD| D[Initialize Graph API Auth]
+    C -->|Local| E[Get Local Credentials]
+    C -->|Certificate| F[Initialize Certificate Auth]
+    
+    D --> G[Request OAuth Token]
+    G --> H{Token Received?}
+    H -->|Yes| I[Store Token in Secure Cache]
+    H -->|No| J[Check Error Type]
+    
+    J --> K{Error Type}
+    K -->|Expired Credentials| L[Prompt for Re-authentication]
+    K -->|Network| M[Retry with Backoff]
+    K -->|Permissions| N[Log Permission Error]
+    
+    L --> O[Capture New Credentials]
+    O --> G
+    
+    M --> P{Retry Successful?}
+    P -->|Yes| G
+    P -->|No| Q[Switch to Fallback Auth]
+    
+    E --> R[Validate Local Credentials]
+    R --> S{Valid Credentials?}
+    S -->|Yes| T[Create Credential Object]
+    S -->|No| U[Prompt for Credentials]
+    
+    U --> V[Validate Input]
+    V --> W{Input Valid?}
+    W -->|Yes| T
+    W -->|No| X[Retry or Abort]
+    
+    F --> Y[Load Certificate]
+    Y --> Z{Certificate Valid?}
+    Z -->|Yes| AA[Create Auth Context]
+    Z -->|No| AB[Check Certificate Store]
+    
+    AB --> AC{Certificate Found?}
+    AC -->|Yes| Y
+    AC -->|No| AD[Log Certificate Error]
+    
+    I --> AE[Verify Token Permissions]
+    T --> AE
+    AA --> AE
+    
+    AE --> AF{Sufficient Permissions?}
+    AF -->|Yes| AG[Return Auth Context]
+    AF -->|No| AH[Log Permission Warning]
+    AH --> AG
+    
+    AG --> AI[End Authentication]
+    N --> AJ[End Authentication: Error]
+    Q --> AJ
+    X --> AJ
+    AD --> AJ 

@@ -1,16 +1,119 @@
-%%{init: {'theme': 'default', 'themeVariables': { 'primaryColor': '#0078d4', 'fontSize': '14px'}}}%%
+%%{init: {'theme': 'default', 'themeVariables': { 'primaryColor': '#8b0000', 'fontSize': '14px'}}}%%
 flowchart TD
-    A[Start Migration Process] --> B[Create Backup Point]
-    B --> C[Execute Migration Steps]
-    C --> D{Migration Successful?}
-    D -->|Yes| E[Verify Results]
-    D -->|No| F[Initiate Rollback]
-    E -->|Verification OK| G[Log Success]
-    E -->|Verification Failed| F
-    F --> H[Restore from Backup]
-    H --> I{Restore Successful?}
-    I -->|Yes| J[Notify Admin: Rollback Complete]
-    I -->|No| K[Alert: Critical Restore Failure]
-    G --> L[End: Migration Complete]
-    J --> M[End: Returned to Initial State]
-    K --> N[End: Manual Intervention Required] 
+    A[Start Rollback Process] --> B[Load Rollback Configuration]
+    B --> C[Identify Rollback Components]
+    C --> D{Pre-requisites Met?}
+    D -->|No| E[Log Pre-requisite Failure]
+    E --> F[End: Cannot Rollback]
+    
+    D -->|Yes| G[Verify Backup Availability]
+    G --> H{Backups Available?}
+    H -->|No| I[Log Missing Backups]
+    I --> J[Attempt Recovery of Backups]
+    J --> K{Recovery Successful?}
+    K -->|No| L[End: Missing Critical Backups]
+    
+    K -->|Yes| M[Load Recovered Backups]
+    H -->|Yes| M
+    
+    M --> N[Assess Rollback Impact]
+    N --> O[Create Rollback Plan]
+    O --> P[Validate Rollback Plan]
+    P --> Q{Plan Validated?}
+    Q -->|No| R[Adjust Rollback Plan]
+    R --> P
+    
+    Q -->|Yes| S[Notify Rollback Initiation]
+    S --> T[Stop Services]
+    T --> U[Check Running Processes]
+    U --> V{All Processes Stopped?}
+    V -->|No| W[Force Stop Processes]
+    W --> X{Force Stop Successful?}
+    X -->|No| Y[Log Process Termination Failure]
+    Y --> Z[End: Cannot Proceed]
+    
+    X -->|Yes| AA[Verify System State]
+    V -->|Yes| AA
+    
+    AA --> AB{System Ready for Rollback?}
+    AB -->|No| AC[Prepare System]
+    AC --> AD{Preparation Successful?}
+    AD -->|No| AE[Log Preparation Failure]
+    AE --> AF[End: System Not Ready]
+    
+    AD -->|Yes| AG[Begin Component Rollback]
+    AB -->|Yes| AG
+    
+    AG --> AH[Restore Configuration Files]
+    AH --> AI{Restoration Successful?}
+    AI -->|No| AJ[Log File Restoration Failure]
+    AJ --> AK[Attempt Alternative Restoration]
+    AK --> AL{Alternative Successful?}
+    AL -->|No| AM[Log Critical Restoration Failure]
+    AM --> AN[End: Partial Rollback]
+    
+    AL -->|Yes| AO[Continue with Restoration]
+    AI -->|Yes| AO
+    
+    AO --> AP[Restore Registry Settings]
+    AP --> AQ{Registry Restored?}
+    AQ -->|No| AR[Log Registry Restoration Failure]
+    AR --> AS[Attempt Registry Recovery]
+    AS --> AT{Recovery Successful?}
+    AT -->|No| AU[Log Registry Recovery Failure]
+    AU --> AV[End: Registry Not Rolled Back]
+    
+    AT -->|Yes| AW[Continue with Rollback]
+    AQ -->|Yes| AW
+    
+    AW --> AX[Restore Application Settings]
+    AX --> AY{Applications Restored?}
+    AY -->|No| AZ[Log Application Restoration Failure]
+    AZ --> BA[Assess Critical Applications]
+    BA --> BB{Critical Apps Failed?}
+    BB -->|Yes| BC[Log Critical Application Failure]
+    BC --> BD[End: Critical Apps Not Restored]
+    
+    BB -->|No| BE[Continue with Non-Critical]
+    AY -->|Yes| BE
+    
+    BE --> BF[Restore User Data]
+    BF --> BG{User Data Restored?}
+    BG -->|No| BH[Log User Data Restoration Failure]
+    BH --> BI[Identify Missing Data]
+    BI --> BJ[Record Data Loss]
+    BJ --> BK[Continue with Available Data]
+    
+    BG -->|Yes| BK
+    
+    BK --> BL[Verify System Functionality]
+    BL --> BM{System Functional?}
+    BM -->|No| BN[Log Functionality Issues]
+    BN --> BO[Troubleshoot Failures]
+    BO --> BP{Issues Resolved?}
+    BP -->|No| BQ[Document Unresolved Issues]
+    BQ --> BR[End: Partial Functionality]
+    
+    BP -->|Yes| BS[Complete Verification]
+    BM -->|Yes| BS
+    
+    BS --> BT[Restart Services]
+    BT --> BU{Services Started?}
+    BU -->|No| BV[Log Service Start Failure]
+    BV --> BW[Attempt Service Recovery]
+    BW --> BX{Recovery Successful?}
+    BX -->|No| BY[Log Service Recovery Failure]
+    BY --> BZ[End: Services Not Restored]
+    
+    BX -->|Yes| CA[Verify Service Functionality]
+    BU -->|Yes| CA
+    
+    CA --> CB{Services Functional?}
+    CB -->|No| CC[Log Service Issues]
+    CC --> CD[Document Service Limitations]
+    CD --> CE[End: Limited Functionality]
+    
+    CB -->|Yes| CF[Generate Rollback Report]
+    CF --> CG[Update System Status]
+    CG --> CH[Notify Rollback Completion]
+    CH --> CI[End: Successful Rollback] 

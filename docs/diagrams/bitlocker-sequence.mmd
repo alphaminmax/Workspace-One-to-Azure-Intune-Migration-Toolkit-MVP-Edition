@@ -1,0 +1,40 @@
+%%{init: {'theme': 'default', 'themeVariables': { 'primaryColor': '#007acc', 'fontSize': '14px'}}}%%
+sequenceDiagram
+    participant ME as MigrationEngine
+    participant BM as BitLockerManagement
+    participant KV as KeyVault
+    participant API as GraphAPI
+    participant OS as Operating System
+    
+    ME->>BM: Initialize-BitLockerMigration
+    BM->>OS: Get-BitLockerVolume
+    OS-->>BM: BitLocker Status
+    
+    alt BitLocker Enabled
+        BM->>OS: Get-BitLockerRecoveryKey
+        OS-->>BM: Recovery Keys
+        
+        alt Backup Method = KeyVault
+            BM->>KV: Store-BitLockerKey
+            KV-->>BM: Success/Failure
+        else Backup Method = AzureAD
+            BM->>API: Backup-BitLockerToAzureAD
+            API-->>BM: Success/Failure
+        else Backup Method = Local
+            BM->>OS: Save-BitLockerKeyToFile
+            OS-->>BM: Success/Failure
+        end
+    else BitLocker Disabled
+        alt Enable BitLocker = True
+            BM->>OS: Enable-BitLocker
+            OS-->>BM: Success/Failure
+            BM->>OS: Get-BitLockerRecoveryKey
+            OS-->>BM: Recovery Keys
+            BM->>KV: Store-BitLockerKey
+            KV-->>BM: Success/Failure
+        end
+    end
+    
+    BM->>OS: Set-BitLockerPolicy
+    OS-->>BM: Success/Failure
+    BM-->>ME: Migration Result 

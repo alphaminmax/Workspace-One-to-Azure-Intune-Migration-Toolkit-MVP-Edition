@@ -1,0 +1,60 @@
+sequenceDiagram
+    participant User as Migration Tool
+    participant Graph as Microsoft Graph API
+    participant Azure as Azure AD
+    participant KeyVault as Azure Key Vault
+    participant Token as Token Cache
+    
+    User->>User: Initialize Authentication
+    User->>KeyVault: Request Credentials
+    
+    alt Credentials in Key Vault
+        KeyVault-->>User: Return Client ID and Secret
+    else No Credentials in Key Vault
+        KeyVault-->>User: Not Found
+        User->>User: Check Environment Variables
+        alt Credentials in Environment
+            User-->>User: Load from Environment
+        else No Environment Variables
+            User-->>User: Prompt for Interactive Login
+        end
+    end
+    
+    User->>Azure: Request Authentication Token
+    
+    alt Interactive Auth
+        Azure-->>User: Display Login Prompt
+        User->>Azure: Provide Credentials
+    else App Auth with Client Secret
+        User->>Azure: Send Client ID and Secret
+    else Certificate-Based Auth
+        User->>Azure: Send Client ID and Certificate
+    end
+    
+    Azure-->>Graph: Validate Credentials
+    Graph-->>Azure: Confirm Validation
+    
+    Azure-->>User: Return Access Token
+    User->>Token: Cache Token
+    
+    loop During Operation
+        User->>Token: Check for Valid Token
+        alt Token Valid
+            Token-->>User: Return Cached Token
+        else Token Expired
+            User->>Azure: Request Token Refresh
+            Azure-->>User: Return New Token
+            User->>Token: Update Cache
+        end
+        
+        User->>Graph: Make API Request with Token
+        Graph-->>User: Return Requested Data
+    end
+    
+    alt Error Handling
+        Graph-->>User: Return 401 Unauthorized
+        User->>Token: Invalidate Cache
+        User->>Azure: Request New Token
+        Azure-->>User: Return Fresh Token
+        User->>Graph: Retry Request
+    end 

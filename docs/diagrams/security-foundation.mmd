@@ -1,0 +1,22 @@
+%%{init: {'theme': 'default', 'themeVariables': { 'primaryColor': '#0078d4', 'fontSize': '14px'}}}%%
+flowchart TD
+    A[Start Security Foundation] --> B{Authentication Method}
+    B -->|Azure Key Vault| C[Authenticate to Azure]
+    B -->|Certificate| D[Load Certificate]
+    B -->|Local Credentials| E[Use Secure String]
+    C --> F[Initialize Key Vault Connection]
+    D --> G[Validate Certificate]
+    E --> H[Store in Memory Only]
+    F --> I[Retrieve Secrets]
+    G --> J[Encrypt with Certificate]
+    H --> K[Generate Session Key]
+    I --> L[Process Secure Operations]
+    J --> L
+    K --> L
+    L --> M{Operation Type}
+    M -->|Read| N[Decrypt Data]
+    M -->|Write| O[Encrypt Data]
+    N --> P[Return Secure Data]
+    O --> Q[Store Encrypted Data]
+    P --> R[End: Security Operation Complete]
+    Q --> R 

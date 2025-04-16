@@ -1,0 +1,121 @@
+flowchart TD
+    A[Start Key Vault Integration] --> B[Load Credential Configuration]
+    B --> C[Check for Azure Environment]
+    
+    C --> D{Azure Environment Available?}
+    D -->|No| E[Fall Back to Local Credential Storage]
+    E --> F[Initialize Local Secure Storage]
+    
+    D -->|Yes| G[Initialize Azure Authentication]
+    G --> H{Authentication Successful?}
+    
+    H -->|No| I[Retry Authentication]
+    I --> J{Retry Successful?}
+    J -->|No| K[Log Authentication Failure]
+    K --> L[Fall Back to Local Storage]
+    L --> F
+    
+    J -->|Yes| M[Verify Key Vault Access]
+    H -->|Yes| M
+    
+    M --> N{Key Vault Accessible?}
+    N -->|No| O[Check Permissions]
+    O --> P{Permission Issues?}
+    P -->|Yes| Q[Request Elevated Permissions]
+    Q --> R{Permissions Granted?}
+    R -->|No| S[Log Access Failure]
+    S --> T[Fall Back to Local Storage]
+    T --> F
+    
+    R -->|Yes| U[Retry Key Vault Access]
+    P -->|No| V[Log Connectivity Error]
+    V --> W[Fall Back to Local Storage]
+    W --> F
+    
+    U --> X{Access Successful?}
+    X -->|No| Y[Log Persistent Access Issues]
+    Y --> Z[Fall Back to Local Storage]
+    Z --> F
+    
+    X -->|Yes| AA[Initialize Key Vault Client]
+    N -->|Yes| AA
+    
+    F --> AB[Initialize Credential Manager]
+    AA --> AB
+    
+    AB --> AC[Define Secret Naming Convention]
+    AC --> AD[Set Up Secure Context]
+    
+    AD --> AE{Operation Type?}
+    AE -->|Store| AF[Validate Secret Data]
+    AF --> AG{Data Valid?}
+    AG -->|No| AH[Log Validation Error]
+    AH --> AI[End: Failure]
+    
+    AG -->|Yes| AJ{Storage Method?}
+    AJ -->|Key Vault| AK[Encrypt Secret]
+    AK --> AL[Store in Key Vault]
+    
+    AL --> AM{Storage Successful?}
+    AM -->|No| AN[Log Storage Error]
+    AN --> AO[Attempt Local Fallback]
+    AO --> AP{Fallback Successful?}
+    AP -->|No| AQ[Log Complete Failure]
+    AQ --> AI
+    
+    AP -->|Yes| AR[Log Fallback Success]
+    AR --> AS[End: Partial Success]
+    
+    AM -->|Yes| AT[Log Storage Success]
+    AT --> AU[End: Success]
+    
+    AJ -->|Local| AV[Encrypt for Local Storage]
+    AV --> AW[Store in Credential Manager]
+    
+    AW --> AX{Local Storage Successful?}
+    AX -->|No| AY[Log Local Storage Error]
+    AY --> AI
+    
+    AX -->|Yes| AZ[Log Local Storage Success]
+    AZ --> BA[End: Success (Local)]
+    
+    AE -->|Retrieve| BB[Parse Secret Identifier]
+    BB --> BC{Key Vault Available?}
+    BC -->|Yes| BD[Query Key Vault]
+    BD --> BE{Secret Found?}
+    BE -->|No| BF[Log Retrieval Error]
+    BF --> BG[Check Local Storage]
+    BG --> BH{Local Backup Exists?}
+    BH -->|No| BI[Log Complete Retrieval Failure]
+    BI --> AI
+    
+    BH -->|Yes| BJ[Retrieve from Local]
+    BJ --> BK{Local Retrieval Successful?}
+    BK -->|No| BL[Log Complete Failure]
+    BL --> AI
+    
+    BK -->|Yes| BM[Log Fallback Success]
+    BM --> AS
+    
+    BE -->|Yes| BN[Decrypt Secret]
+    BN --> BO{Decryption Successful?}
+    BO -->|No| BP[Log Decryption Error]
+    BP --> BG
+    
+    BO -->|Yes| BQ[Return Secret]
+    BQ --> BR[Log Successful Retrieval]
+    BR --> AU
+    
+    BC -->|No| BS[Try Local Storage]
+    BS --> BT{Local Secret Found?}
+    BT -->|No| BU[Log Retrieval Failure]
+    BU --> AI
+    
+    BT -->|Yes| BV[Decrypt Local Secret]
+    BV --> BW{Local Decryption Successful?}
+    BW -->|No| BX[Log Decryption Error]
+    BX --> AI
+    
+    BW -->|Yes| BY[Return Local Secret]
+    BY --> BZ[Log Local Retrieval Success]
+    BZ --> BA 

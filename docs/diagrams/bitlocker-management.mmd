@@ -1,16 +1,225 @@
 %%{init: {'theme': 'default', 'themeVariables': { 'primaryColor': '#0078d4', 'fontSize': '14px'}}}%%
 flowchart TD
-    A[Start BitLocker Management] --> B{BitLocker Enabled?}
-    B -->|No| C[Enable BitLocker]
-    C --> D[Generate Recovery Keys]
-    B -->|Yes| D
-    D --> E[Backup Keys to Azure AD]
-    E --> F{Backup Successful?}
-    F -->|No| G[Log Failure]
-    G --> H[Attempt Alternative Backup]
-    H --> I{Alternative Successful?}
-    I -->|No| J[Flag for Manual Intervention]
-    I -->|Yes| K[Log Success]
-    F -->|Yes| K
-    K --> L[End: Keys Successfully Backed Up]
-    J --> M[End: Manual Intervention Required] 
+    A[Start BitLocker Management] --> B[Check System Requirements]
+    B --> C{TPM Available?}
+    C -->|No| D[Log TPM Unavailability]
+    D --> E[Check BitLocker Alternative Methods]
+    
+    E --> F{Alternative Available?}
+    F -->|No| G[Report BitLocker Not Supported]
+    G --> H[End: Not Supported]
+    
+    F -->|Yes| I[Configure BitLocker with Alternative]
+    C -->|Yes| J[Verify TPM Status]
+    
+    J --> K{TPM Ready?}
+    K -->|No| L[Initialize TPM]
+    L --> M{Initialization Successful?}
+    M -->|No| N[Log TPM Initialization Failure]
+    N --> E
+    
+    M -->|Yes| O[Configure TPM for BitLocker]
+    K -->|Yes| O
+    
+    O --> P[Check Current BitLocker Status]
+    I --> P
+    
+    P --> Q{BitLocker Enabled?}
+    Q -->|Yes| R[Retrieve Existing Recovery Keys]
+    R --> S{Migration Required?}
+    
+    S -->|No| T[Verify Recovery Key Backup]
+    T --> U{Keys Backed Up?}
+    U -->|No| V[Backup Recovery Keys]
+    V --> W{Backup Successful?}
+    W -->|No| X[Log Backup Failure]
+    X --> Y[Prompt for Manual Backup]
+    Y --> Z[End: Manual Intervention Required]
+    
+    W -->|Yes| AA[Log Successful Backup]
+    U -->|Yes| AA
+    
+    AA --> AB[Verify BitLocker Configuration]
+    AB --> AC{Configuration Valid?}
+    AC -->|No| AD[Update BitLocker Configuration]
+    AD --> AE{Update Successful?}
+    AE -->|No| AF[Log Configuration Error]
+    AF --> AG[Schedule Configuration Fix]
+    AG --> AH[End: Remediation Needed]
+    
+    AE -->|Yes| AI[Log Configuration Update]
+    AC -->|Yes| AI
+    
+    AI --> AJ[Check BitLocker Policy Compliance]
+    AJ --> AK{Policy Compliant?}
+    AK -->|No| AL[Apply Policy Updates]
+    AL --> AM{Update Applied?}
+    AM -->|No| AN[Log Policy Update Failure]
+    AN --> AO[Report Compliance Issue]
+    AO --> AP[End: Non-Compliant]
+    
+    AM -->|Yes| AQ[Log Policy Update Success]
+    AK -->|Yes| AQ
+    
+    AQ --> AR[End: Successful]
+    
+    S -->|Yes| AS[Prepare for Recovery Key Migration]
+    AS --> AT[Get Target Environment Details]
+    AT --> AU{Azure/Intune Available?}
+    
+    AU -->|Yes| AV[Connect to Microsoft Graph API]
+    AV --> AW{Connection Successful?}
+    AW -->|No| AX[Log Connection Error]
+    AX --> AY[Fall Back to Local Migration]
+    
+    AW -->|Yes| AZ[Get Device ID from Azure AD]
+    AZ --> BA{Device Registered?}
+    BA -->|No| BB[Register Device]
+    BB --> BC{Registration Successful?}
+    BC -->|No| BD[Log Registration Failure]
+    BD --> AY
+    
+    BC -->|Yes| BE[Link Device to User]
+    BA -->|Yes| BE
+    
+    BE --> BF[Backup Recovery Keys to Azure AD]
+    BF --> BG{Backup Successful?}
+    BG -->|No| BH[Retry Backup]
+    BH --> BI{Retry Successful?}
+    BI -->|No| BJ[Log Azure Backup Failure]
+    BJ --> AY
+    
+    BI -->|Yes| BK[Verify Keys in Azure AD]
+    BG -->|Yes| BK
+    
+    BK --> BL{Keys Verified?}
+    BL -->|No| BM[Report Verification Failure]
+    BM --> BN[End: Verification Failed]
+    
+    BL -->|Yes| BO[Log Successful Migration]
+    BO --> BP[Update BitLocker Management Status]
+    BP --> BQ[End: Migration Successful]
+    
+    AU -->|No| AY
+    AY --> BR[Back Up Keys to Local Storage]
+    BR --> BS{Local Backup Successful?}
+    BS -->|No| BT[Log Backup Failure]
+    BT --> BU[End: Backup Failed]
+    
+    BS -->|Yes| BV[Create Documentation for Key Recovery]
+    BV --> BW[Log Local Migration Status]
+    BW --> BX[End: Local Migration Complete]
+    
+    Q -->|No| BY[Check BitLocker Requirement]
+    BY --> BZ{Required?}
+    BZ -->|No| CA[Log BitLocker Not Required]
+    CA --> CB[End: Not Required]
+    
+    BZ -->|Yes| CC[Enable BitLocker]
+    CC --> CD{Encryption Successful?}
+    CD -->|No| CE[Log Encryption Failure]
+    CE --> CF[Check Error Type]
+    CF --> CG{Recoverable Error?}
+    CG -->|No| CH[Report Critical Failure]
+    CH --> CI[End: Critical Error]
+    
+    CG -->|Yes| CJ[Resolve Issues]
+    CJ --> CK[Retry Encryption]
+    CK --> CL{Retry Successful?}
+    CL -->|No| CM[Schedule for Manual Fix]
+    CM --> CN[End: Manual Fix Required]
+    
+    CL -->|Yes| CO[Generate Recovery Keys]
+    CD -->|Yes| CO
+    
+    CO --> CP[Store Recovery Keys]
+    CP --> CQ{Migration Required?}
+    CQ -->|Yes| AS
+    CQ -->|No| CR[Backup Keys to Default Location]
+    CR --> CS{Backup Successful?}
+    CS -->|No| CT[Log Backup Issue]
+    CT --> CU[Prompt for Manual Backup]
+    CU --> CV[End: Manual Backup Required]
+    
+    CS -->|Yes| CW[Document Key Location]
+    CW --> CX[Verify Encryption Status]
+    CX --> CY{Verification Successful?}
+    CY -->|No| CZ[Log Verification Error]
+    CZ --> DA[Schedule Verification Check]
+    DA --> DB[End: Verification Needed]
+    
+    CY -->|Yes| DC[Log Successful Implementation]
+    DC --> DD[End: Successfully Implemented]
+
+sequenceDiagram
+    participant User as Migration Tool
+    participant BL as BitLocker Management
+    participant TPM as TPM Module
+    participant OS as Operating System
+    participant Azure as Azure AD / Intune
+    participant KV as Key Vault
+    
+    User->>BL: Initialize-BitLockerManagement
+    activate BL
+    BL->>OS: Check BitLocker Status
+    OS-->>BL: Return Status
+    
+    alt BitLocker not enabled
+        BL->>TPM: Check TPM Status
+        TPM-->>BL: Return TPM Status
+        
+        alt TPM Available
+            BL->>OS: Enable-BitLocker with TPM
+        else No TPM
+            BL->>OS: Enable-BitLocker with Password
+            BL->>KV: Store Recovery Password
+        end
+    end
+    
+    BL->>OS: Get Recovery Keys
+    OS-->>BL: Return Recovery Keys
+    
+    alt Migration Mode = "BACKUP"
+        BL->>KV: Backup Recovery Keys to Key Vault
+        KV-->>BL: Confirm Backup
+    else Migration Mode = "MIGRATE"
+        BL->>Azure: Backup Keys to Azure AD
+        Azure-->>BL: Confirm Backup
+    else Migration Mode = "BOTH"
+        BL->>KV: Backup Recovery Keys to Key Vault
+        KV-->>BL: Confirm Backup
+        BL->>Azure: Backup Keys to Azure AD
+        Azure-->>BL: Confirm Backup
+    end
+    
+    BL->>BL: Verify Recovery Key Backup
+    
+    alt Verification Failed
+        BL->>User: Return Error Status
+    else Verification Success
+        BL->>User: Return Success
+    end
+    deactivate BL
+    
+    User->>BL: Get-BitLockerStatus
+    activate BL
+    BL->>OS: Query BitLocker Status
+    OS-->>BL: Return Detailed Status
+    BL->>User: Return Status Report
+    deactivate BL
+    
+    User->>BL: Test-RecoveryKeyBackup
+    activate BL
+    
+    alt Check Azure AD
+        BL->>Azure: Query Recovery Keys
+        Azure-->>BL: Return Key Status
+    end
+    
+    alt Check Key Vault
+        BL->>KV: Query Recovery Keys
+        KV-->>BL: Return Key Status
+    end
+    
+    BL->>User: Return Verification Results
+    deactivate BL 

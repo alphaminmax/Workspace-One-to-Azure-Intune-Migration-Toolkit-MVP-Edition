@@ -1,0 +1,49 @@
+flowchart TD
+    A[Start Device Health Check] --> B[Load Health Check Configuration]
+    B --> C[Initialize Diagnostic Tools]
+    C --> D[Check System Requirements]
+    
+    D --> E{Meets Minimum Requirements?}
+    E -->|Yes| F[Begin Comprehensive Checks]
+    E -->|No| G[Log System Requirements Failure]
+    G --> H[Generate Requirements Report]
+    H --> Z[End Health Check: Failed]
+    
+    F --> I[Check Disk Health]
+    I --> J[Check Memory Status]
+    J --> K[Verify Network Connectivity]
+    K --> L[Check CPU Performance]
+    L --> M[Verify OS Integrity]
+    
+    M --> N[Check BitLocker Status]
+    N --> O[Scan for Malware]
+    O --> P[Check Battery Health]
+    P --> Q[Verify Boot Configuration]
+    Q --> R[Check Driver Status]
+    
+    R --> S[Verify Application State]
+    S --> T[Check Windows Update Status]
+    T --> U[Verify User Profile Integrity]
+    
+    U --> V[Compile Health Results]
+    V --> W{All Checks Passed?}
+    
+    W -->|Yes| X[Generate Success Report]
+    W -->|No| Y[Identify Failed Components]
+    Y --> AA[Categorize Issues]
+    
+    AA --> AB{Severity Level}
+    AB -->|Critical| AC[Flag as Migration Blocker]
+    AB -->|Warning| AD[Add to Migration Warnings]
+    AB -->|Info| AE[Add to Migration Notes]
+    
+    AC --> AF[Generate Remediation Steps]
+    AD --> AF
+    AE --> AF
+    
+    AF --> AG[Compile Health Report]
+    X --> AG
+    
+    AG --> AH[Store Results in Log]
+    AH --> AI[Return Health Status]
+    AI --> AJ[End Health Check: Complete] 
