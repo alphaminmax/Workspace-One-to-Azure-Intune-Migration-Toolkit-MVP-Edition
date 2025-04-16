@@ -168,7 +168,8 @@ function New-TestResources {
         }
     }
     catch {
-        Write-Log "Failed to create test resources for $TestName: $_" -Level Error
+        $errorMsg = $_.Exception.Message
+        Write-Log "Failed to create test resources for $TestName" + ": $errorMsg" -Level Error
         return @{
             Success = $false
             Error = $_
@@ -201,7 +202,8 @@ function Remove-TestResources {
         return $true
     }
     catch {
-        Write-Log "Failed to clean up test resources for $TestName: $_" -Level Error
+        $errorMsg = $_.Exception.Message
+        Write-Log "Failed to clean up test resources for $TestName" + ": $errorMsg" -Level Error
         return $false
     }
 }
@@ -234,7 +236,7 @@ function Register-TestResult {
     else {
         $script:TestResults.FailedTests++
         $Result = "Failed"
-        Write-Log "$TestName - $Result: $ErrorMessage" -Level Error
+        Write-Log "$TestName - $Result" + ": $ErrorMessage" -Level Error
     }
     
     $script:TestResults.Tests += [PSCustomObject]@{

@@ -821,7 +821,8 @@ process {
                 Write-Log -Message "Skipping integration tests as requested" -Level "INFO"
             }
         } catch {
-            Write-Log -Message "An error occurred while testing on computer $computer: $_" -Level "ERROR"
+            $errorMsg = $_.Exception.Message
+            Write-Log -Message "An error occurred while testing on computer $computer" + ": $errorMsg" -Level "ERROR"
         }
     }
 }

@@ -153,10 +153,12 @@ function Import-RequiredModules {
                 Import-Module $modulePath -Force -ErrorAction Stop
                 Write-Log "Imported module: $module" -Level "INFO"
             } else {
+                $errorMsg = $_.Exception.Message
                 Write-Log "Module not found: $module" -Level "WARNING"
             }
         } catch {
-            Write-Log "Failed to import module $module: $_" -Level "ERROR"
+            $errorMsg = $_.Exception.Message
+            Write-Log "Failed to import module $module" + ": $errorMsg" -Level "ERROR"
             return $false
         }
     }

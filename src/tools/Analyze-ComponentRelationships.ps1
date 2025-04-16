@@ -583,7 +583,7 @@ function Generate-OptimizationRecommendationsReport {
                 $recommendations += "  Synchronous Relationship Recommendations:`n"
                 foreach ($rel in $syncRels) {
                     $otherComponent = if ($rel.componentA -eq $component.name) { $rel.componentB } else { $rel.componentA }
-                    $recommendations += "    ├─ With $otherComponent: "
+                    $recommendations += "    ├─ With $otherComponent" + ": "
                     
                     # Suggest appropriate optimizations based on the components involved
                     switch ("$($component.name)-$otherComponent") {
