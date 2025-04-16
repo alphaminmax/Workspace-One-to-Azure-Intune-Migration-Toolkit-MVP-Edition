@@ -526,3 +526,14 @@ The solution supports fully unattended operation for mass deployment:
 # Example for mass deployment
 .\src\scripts\Invoke-WorkspaceOneSetup.ps1 -Silent -LogPath "C:\ProgramData\WS1Migration\Logs" -ConfigPath "\\server\share\config.json" -AzureTenantId "tenant-id"
 ```
+
+## Documentation
+
+The migration toolkit includes comprehensive documentation:
+
+- [Migration Workflow Diagrams](docs/Workflow-Diagrams.md) - Visual workflows of key processes
+- [BitLocker Management](docs/BitLocker-Management.md) - BitLocker key migration and management
+- [Rollback Mechanism](docs/Rollback-Mechanism.md) - Backup and rollback capabilities
+- [Intune Integration](docs/Intune-Integration.md) - Microsoft Intune API integration
+- [Secure Credential Handling](docs/Secure-Credential-Handling.md) - Security and credential management
+- [User Communication Framework](docs/UserCommunicationFramework.md) - User notification and feedback
