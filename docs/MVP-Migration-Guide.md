@@ -1,6 +1,191 @@
 ![Crayon Logo](../assests/img/Crayon-Logo-RGB-Negative.svg)
 
-# MVP Migration Toolkit - Quick Start Guide
+# Workspace ONE Migration Toolkit - MVP Quick Start Guide
+
+## Introduction
+
+This guide provides essential information for getting started with the Workspace ONE Migration Toolkit (MVP version). The MVP toolkit includes the core functionality needed to migrate users from legacy systems to Workspace ONE and Intune.
+
+## What's Included in the MVP
+
+1. **Core Modules**
+   - UserAuthenticationModule
+   - UserCommunicationFramework
+   - EnhancedReporting
+   - IntuneIntegrationFramework
+   - WorkspaceOneWizard
+
+2. **Essential Scripts**
+   - Invoke-WorkspaceOneSetup.ps1
+   - Test-WS1Environment.ps1
+   - Start-Migration.ps1
+   - Send-MigrationReport.ps1
+
+3. **UI Components**
+   - Basic enrollment wizard
+   - Migration progress dialogs
+   - Feedback collection forms
+
+## Quick Setup Process
+
+1. **Clone the repository**
+   ```powershell
+   git clone https://github.com/organization/WS1-Migration-Toolkit.git
+   cd WS1-Migration-Toolkit
+   ```
+
+2. **Configure environment**
+   - Create a `.env` file in the root directory with your environment-specific settings
+   - Use the `.env.example` file as a template
+
+3. **Verify prerequisites**
+   ```powershell
+   .\Test-WS1Environment.ps1
+   ```
+
+4. **Run the migration script**
+   ```powershell
+   .\Start-Migration.ps1
+   ```
+
+## Core Capabilities
+
+### 1. Secure Credential Handling
+
+The MVP toolkit includes essential functionality for secure handling of credentials:
+
+- Secure storage of authentication tokens
+- Integration with Windows Credential Manager
+- Basic password policy enforcement
+- Credential validation against directory services
+
+### 2. Migration Process
+
+The toolkit provides a streamlined migration process:
+
+- User profile backup
+- Basic application inventory
+- Configuration migration
+- Staged rollout capabilities
+- Rollback procedures for failed migrations
+
+### 3. User Communication
+
+Effective user communication is facilitated through:
+
+- Email notifications at key migration stages
+- Basic SMS alerts for critical actions
+- On-screen guidance during enrollment
+- Self-service troubleshooting resources
+
+### 4. Authentication Transition
+
+The MVP supports the transition of authentication methods:
+
+- Password synchronization between systems
+- Multi-factor authentication setup
+- Single sign-on configuration
+- Conditional access policy application
+
+### 5. Security Foundation
+
+Security features included in the MVP:
+
+- TLS 1.2+ for all communications
+- Certificate validation
+- Audit logging of all migration actions
+- Compliance reporting for completed migrations
+
+## Limitations of the MVP
+
+The MVP version has the following limitations compared to the full toolkit:
+
+1. **Limited device types supported** - Windows 10/11 only
+2. **Minimal customization options** - Basic branding only
+3. **Simplified reporting** - Essential metrics only
+4. **Manual interventions required** - For complex migration scenarios
+5. **Limited scalability** - Designed for deployments under 500 devices
+
+## Environment Configuration
+
+The toolkit uses environment variables for configuration, which can be set in a `.env` file. For more information, see [Environment Configuration](Environment-Configuration.md).
+
+Key variables include:
+
+```
+# Authentication
+WS1_AUTH_ENDPOINT=https://example.com/auth
+WS1_CLIENT_ID=your_client_id_here
+WS1_CLIENT_SECRET=your_client_secret_here
+
+# Workspace ONE
+WS1_API_ENDPOINT=https://as123.awmdm.com/api
+WS1_ADMIN_USERNAME=administrator
+WS1_TENANT_CODE=your_tenant_code
+
+# Intune
+INTUNE_TENANT_ID=your_tenant_id
+INTUNE_APP_ID=your_app_id
+INTUNE_APP_SECRET=your_app_secret
+```
+
+## Troubleshooting Common Issues
+
+### Module Import Errors
+
+```
+Problem: Unable to import module X
+Solution: Ensure you're running PowerShell 5.1 or higher and have all prerequisites installed
+```
+
+### Authentication Issues
+
+```
+Problem: Authentication failed with Workspace ONE API
+Solution: Verify credentials in .env file and check network connectivity to authentication endpoint
+```
+
+### Permission Issues
+
+```
+Problem: Access denied when executing migration steps
+Solution: Ensure script is running with administrative privileges
+```
+
+### Connectivity Failures
+
+```
+Problem: Unable to connect to Workspace ONE console
+Solution: Validate network configuration, proxy settings, and firewall rules
+```
+
+### Enrollment Failures
+
+```
+Problem: Device enrollment fails at 80%
+Solution: Check device prerequisites and review logs at %TEMP%\WS1_Enrollment_Logs
+```
+
+## Next Steps After MVP
+
+After successfully implementing the MVP toolkit, consider these enhancements:
+
+1. **Expand device coverage** to include macOS, iOS, and Android
+2. **Implement advanced reporting** with Power BI integration
+3. **Enhance automation** with scheduling and dependency management
+4. **Add custom branding** for improved user experience
+5. **Integrate with ServiceNow** or other ITSM platforms
+
+## Support Resources
+
+- **Documentation**: Full documentation is available in the `/docs` folder
+- **Issue Tracking**: Report issues via the project's GitHub Issues
+- **Community Forum**: Join discussions at https://community.example.com/ws1migration
+- **Email Support**: mvp-support@example.com
+
+---
+
+*This is a living document that will be updated as the MVP toolkit evolves.*
 
 ## Overview
 

@@ -24,14 +24,14 @@ The WorkspaceOneWizard module provides a graphical user interface (GUI) for faci
 - **Exposed Functions**:
   - `Show-EnrollmentWizard`
   - `Test-EnrollmentPrerequisites`
-  - `Import-WS1Config`
+  - `Import-EnvConfig`
 
 ## Architecture
 
 The module follows a modular design with these key components:
 
 1. **Configuration Management**
-   - Import-WS1Config: Loads settings from a JSON configuration file
+   - Import-EnvConfig: Loads settings from environment variables
    - Default settings used if no configuration is found
 
 2. **Logging System**
@@ -61,7 +61,7 @@ The WorkspaceOneWizard module integrates with:
 
 2. **Microsoft Intune**
    - Optional integration for hybrid management
-   - Configurable through the WS1Config.json file
+   - Configurable through environment variables
 
 3. **Other Project Modules**
    - Invoked by the Invoke-WorkspaceOneSetup.ps1 script
@@ -101,29 +101,30 @@ if ($prereqResults.Success) {
 # Import the module
 Import-Module -Name ".\WorkspaceOneWizard.psm1"
 
-# Load a custom configuration file
-Import-WS1Config -ConfigPath "C:\CustomConfig\WS1Config.json"
+# Load configuration from a custom .env file
+Import-EnvConfig -EnvFilePath "C:\CustomConfig\.env"
 
 # Launch the enrollment wizard with custom settings
 Show-EnrollmentWizard
 ```
 
-## Configuration File Format
+## Environment Variable Configuration
 
-The module supports a JSON configuration file with the following structure:
+The module supports configuration through environment variables, typically set in a `.env` file:
 
-```json
-{
-    "EnrollmentServer": "https://ws1enrollmentserver.example.com",
-    "IntuneIntegrationEnabled": true,
-    "LogPath": "C:\\Logs\\WS1_Enrollment",
-    "UICustomization": {
-        "CompanyLogo": "C:\\branding\\logo.png",
-        "PrimaryColor": "#0078D4",
-        "CompanyName": "Example Corporation"
-    }
-}
 ```
+# Basic Configuration
+WS1_ENROLLMENT_SERVER=https://ws1enrollmentserver.example.com
+WS1_INTUNE_INTEGRATION_ENABLED=true
+WS1_LOG_PATH=C:\Logs\WS1_Enrollment
+
+# UI Customization
+WS1_COMPANY_LOGO=C:\branding\logo.png
+WS1_PRIMARY_COLOR=#0078D4
+WS1_COMPANY_NAME=Example Corporation
+```
+
+For more information on environment configuration, see [Environment Configuration Guide](Environment-Configuration.md).
 
 ## Error Handling
 
