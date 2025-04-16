@@ -1,0 +1,72 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2025-04-16",
+  "documentationFiles": [
+    {
+      "fileName": "MVP-Migration-Guide.md",
+      "title": "MVP Migration Guide",
+      "description": "Provides a quick start guide and overview of the MVP toolkit approach",
+      "category": "Getting Started",
+      "order": 1
+    },
+    {
+      "fileName": "UserCommunicationFramework.md",
+      "title": "User Communication Framework",
+      "description": "Documentation for the user notification and communication module",
+      "category": "Modules",
+      "order": 5
+    },
+    {
+      "fileName": "Secure-Credential-Handling.md",
+      "title": "Secure Credential Handling",
+      "description": "Best practices for managing credentials and sensitive data",
+      "category": "Security",
+      "order": 2
+    },
+    {
+      "fileName": "Azure-KeyVault-Integration.md",
+      "title": "Azure Key Vault Integration",
+      "description": "Guide for integrating the toolkit with Azure Key Vault for secure credential storage",
+      "category": "Security",
+      "order": 3
+    },
+    {
+      "fileName": "LockScreenGuidance.md",
+      "title": "Lock Screen Guidance",
+      "description": "Documentation for the lock screen customization module",
+      "category": "Modules",
+      "order": 6
+    },
+    {
+      "fileName": "ApplicationDataMigration.md",
+      "title": "Application Data Migration",
+      "description": "Guide for migrating application-specific settings and data",
+      "category": "Modules",
+      "order": 7
+    },
+    {
+      "fileName": "PrivilegeManagement.md",
+      "title": "Privilege Management",
+      "description": "Documentation for the privilege elevation module",
+      "category": "Security",
+      "order": 4
+    }
+  ],
+  "categories": [
+    {
+      "id": "Getting Started",
+      "description": "Documentation to help you get started with the toolkit",
+      "order": 1
+    },
+    {
+      "id": "Security",
+      "description": "Security-related documentation and best practices",
+      "order": 2
+    },
+    {
+      "id": "Modules",
+      "description": "Documentation for specific modules in the toolkit",
+      "order": 3
+    }
+  ]
+} 

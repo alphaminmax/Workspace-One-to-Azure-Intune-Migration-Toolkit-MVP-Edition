@@ -12,6 +12,8 @@ logs/
 
 # Environment and configuration files
 .env
+.env.*
+*.env
 config/settings.json
 *_credentials.json
 *_secrets.*

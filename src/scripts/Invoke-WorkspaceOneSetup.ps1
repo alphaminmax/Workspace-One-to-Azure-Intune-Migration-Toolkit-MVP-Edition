@@ -22,8 +22,37 @@ param(
     [switch]$EnrollmentOnly,
     
     [Parameter()]
-    [switch]$NoGUI
+    [switch]$NoGUI,
+
+    [Parameter(Mandatory = $false)]
+    [switch]$UseEnvFile,
+    
+    [Parameter(Mandatory = $false)]
+    [string]$EnvFilePath = "./.env",
+    
+    [Parameter(Mandatory = $false)]
+    [switch]$UseKeyVault,
+    
+    [Parameter(Mandatory = $false)]
+    [string]$KeyVaultName,
+    
+    [Parameter(Mandatory = $false)]
+    [string]$StandardAdminAccount,
+    
+    [Parameter(Mandatory = $false)]
+    [switch]$Silent,
+    
+    [Parameter(Mandatory = $false)]
+    [switch]$NoReboot,
+    
+    [Parameter(Mandatory = $false)]
+    [string]$SettingsPath = "./config/settings.json"
 )
+
+# Define script paths at the beginning of the script
+$scriptRoot = $PSScriptRoot
+$moduleRoot = Join-Path -Path $scriptRoot -ChildPath "..\modules"
+$settingsUpdateScript = Join-Path -Path $scriptRoot -ChildPath "Update-SettingsFromEnv.ps1"
 
 # Import required modules
 $modulePath = Join-Path -Path $PSScriptRoot -ChildPath "WorkspaceOneWizard.psm1"
@@ -174,6 +203,64 @@ function Start-WorkspaceOneEnrollment {
     }
 }
 
+# Function to validate settings
+function Test-Settings {
+    param (
+        [string]$SettingsPath
+    )
+    
+    try {
+        $settings = Get-Content -Path $SettingsPath -Raw | ConvertFrom-Json
+        
+        # Validate required settings
+        $missingSettings = @()
+        
+        # Tenant settings
+        if ([string]::IsNullOrEmpty($settings.targetTenant.clientID) -or $settings.targetTenant.clientID -match "YOUR_") {
+            $missingSettings += "Target Tenant Client ID"
+        }
+        
+        if ([string]::IsNullOrEmpty($settings.targetTenant.clientSecret) -or $settings.targetTenant.clientSecret -match "YOUR_") {
+            $missingSettings += "Target Tenant Client Secret"
+        }
+        
+        # Workspace ONE settings
+        if ([string]::IsNullOrEmpty($settings.ws1host) -or $settings.ws1host -match "YOUR_") {
+            $missingSettings += "Workspace ONE Host"
+        }
+        
+        if ([string]::IsNullOrEmpty($settings.ws1username) -or $settings.ws1username -match "YOUR_") {
+            $missingSettings += "Workspace ONE Username"
+        }
+        
+        if ([string]::IsNullOrEmpty($settings.ws1password) -or $settings.ws1password -match "YOUR_") {
+            $missingSettings += "Workspace ONE Password"
+        }
+        
+        if ([string]::IsNullOrEmpty($settings.ws1apikey) -or $settings.ws1apikey -match "YOUR_") {
+            $missingSettings += "Workspace ONE API Key"
+        }
+        
+        # If missing settings, output error and return false
+        if ($missingSettings.Count -gt 0) {
+            Write-Error "The following settings are missing or using placeholder values:"
+            foreach ($setting in $missingSettings) {
+                Write-Error "  - $setting"
+            }
+            
+            Write-Error "Please update your settings.json file or use environment variables/Key Vault to provide these values."
+            return $false
+        }
+        
+        # All settings validated successfully
+        return $true
+    }
+    catch {
+        Write-Error "Error validating settings: $_"
+        return $false
+    }
+}
+
 # Main execution
 try {
     # Initialize environment
@@ -181,6 +268,89 @@ try {
         Exit 1
     }
     
+    # Early in the script, before other operations
+    # If using .env file or Key Vault, update settings
+    if ($UseEnvFile -or $UseKeyVault) {
+        Write-Host "Updating settings from environment variables..." -ForegroundColor Cyan
+        
+        # Build parameters for settings update
+        $updateParams = @{
+            SettingsPath = $SettingsPath
+        }
+        
+        if ($UseEnvFile) {
+            $updateParams.EnvFilePath = $EnvFilePath
+        }
+        
+        if ($UseKeyVault) {
+            $updateParams.UseKeyVault = $true
+            
+            if (-not [string]::IsNullOrEmpty($KeyVaultName)) {
+                $updateParams.KeyVaultName = $KeyVaultName
+            }
+        }
+        
+        # Run the settings update script
+        try {
+            & $settingsUpdateScript @updateParams
+            
+            if ($LASTEXITCODE -ne 0) {
+                Write-Error "Failed to update settings from environment variables. Exit code: $LASTEXITCODE"
+                exit $LASTEXITCODE
+            }
+        }
+        catch {
+            Write-Error "Error running settings update script: $_"
+            exit 1
+        }
+    }
+
+    # Validate settings before proceeding
+    $settingsValid = Test-Settings -SettingsPath $SettingsPath
+    if (-not $settingsValid) {
+        Write-Error "Settings validation failed. Please update your settings and try again."
+        exit 1
+    }
+
+    Write-Host "Settings validated successfully." -ForegroundColor Green
+
+    # Initialize secure credential provider if using standard admin account
+    if (-not [string]::IsNullOrEmpty($StandardAdminAccount)) {
+        $secureEnvInitScript = Join-Path -Path $scriptRoot -ChildPath "Initialize-SecureEnvironment.ps1"
+        
+        # Build parameters for secure environment initialization
+        $secureEnvParams = @{
+            StandardAdminAccount = $StandardAdminAccount
+            AllowInteractive     = (-not $Silent)
+        }
+        
+        if ($UseKeyVault -and -not [string]::IsNullOrEmpty($KeyVaultName)) {
+            $secureEnvParams.KeyVaultName = $KeyVaultName
+        }
+        else {
+            $secureEnvParams.SkipKeyVault = $true
+        }
+        
+        if ($UseEnvFile) {
+            $secureEnvParams.EnvFilePath = $EnvFilePath
+        }
+        
+        # Run the secure environment initialization script
+        try {
+            Write-Host "Initializing secure environment..." -ForegroundColor Cyan
+            & $secureEnvInitScript @secureEnvParams
+            
+            if ($LASTEXITCODE -ne 0) {
+                Write-Error "Failed to initialize secure environment. Exit code: $LASTEXITCODE"
+                exit $LASTEXITCODE
+            }
+        }
+        catch {
+            Write-Error "Error initializing secure environment: $_"
+            exit 1
+        }
+    }
+
     # Test scripts if not skipped
     if (-not $EnrollmentOnly) {
         $scriptsResult = Test-ScriptsEnvironment
@@ -208,14 +378,6 @@ try {
     Write-Host "Completed: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Cyan
 }
 catch {
-    Write-Error "Unhandled error in setup process: ${_}"
-    Exit 1
-}
-finally {
-    # Ensure transcript is stopped
-    try {
-        Stop-Transcript
-    } catch {
-        # Transcript might not be running
-    }
+    Write-Error "Error during setup process: $_"
+    return $false
 } 

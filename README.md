@@ -296,9 +296,32 @@ The toolkit uses a configuration file (`config/settings.json`) that requires sen
    # The toolkit will check for these environment variables before using the config file
    ```
 
-4. **GitIgnore**: The `.gitignore` file is configured to exclude actual configuration files with credentials from being committed to the repository.
+4. **Azure Key Vault Integration**: For enterprise deployment, the toolkit now supports retrieving secrets directly from Azure Key Vault:
+   ```powershell
+   # Initialize with Key Vault integration
+   .\src\scripts\Initialize-SecureEnvironment.ps1 -KeyVaultName "WS1MigrationVault" -StandardAdminAccount "MigrationAdmin"
+   ```
+   See [Azure Key Vault Integration](docs/Azure-KeyVault-Integration.md) for detailed setup instructions.
 
-5. **Secure Storage**: For enterprise deployment, consider using Azure Key Vault or Windows Credential Manager to store and retrieve credentials securely.
+5. **Environment File (.env)**: The toolkit supports loading credentials from a `.env` file:
+   ```
+   # .env file example
+   AZURE_CLIENT_ID=your-client-id
+   AZURE_CLIENT_SECRET=your-client-secret
+   ADMIN_USERNAME=MigrationAdmin
+   ```
+
+6. **GitIgnore**: The `.gitignore` file is configured to exclude actual configuration files with credentials from being committed to the repository.
+
+### Standard Admin Account
+
+The toolkit now supports using a standard admin account across all devices for privileged operations, which simplifies management compared to temporary accounts:
+
+1. **Consistent Identity**: Use the same admin account on all devices
+2. **Central Management**: Store the credentials securely in Azure Key Vault
+3. **Simplified Auditing**: All privileged actions use the same identity
+
+See [Azure Key Vault Integration](docs/Azure-KeyVault-Integration.md) for details on setting up and using a standard admin account.
 
 ### Handling Settings in Different Environments
 

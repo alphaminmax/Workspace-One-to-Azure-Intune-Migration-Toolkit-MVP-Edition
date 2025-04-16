@@ -126,6 +126,58 @@ When using the toolkit in automated deployments:
 4. **Credential Rotation**: Rotate credentials regularly
 5. **Audit Logs**: Monitor credential usage
 
+## Automated Settings Update
+
+The toolkit now includes a dedicated script (`Update-SettingsFromEnv.ps1`) that automatically reads values from environment variables or Azure Key Vault and updates the `settings.json` file. This ensures that sensitive credentials are never stored directly in the settings file.
+
+### Using the Settings Update Script
+
+```powershell
+# Update settings from .env file
+.\src\scripts\Update-SettingsFromEnv.ps1 -EnvFilePath "./.env"
+
+# Update settings from Azure Key Vault
+.\src\scripts\Update-SettingsFromEnv.ps1 -UseKeyVault -KeyVaultName "WS1MigrationVault"
+
+# Update settings from both .env and Azure Key Vault
+.\src\scripts\Update-SettingsFromEnv.ps1 -UseKeyVault -KeyVaultName "WS1MigrationVault" -EnvFilePath "./.env"
+```
+
+### Integration with Main Scripts
+
+The main toolkit scripts (like `Invoke-WorkspaceOneSetup.ps1`) now include parameters to automatically update settings before execution:
+
+```powershell
+# Run the migration process with .env settings
+.\src\scripts\Invoke-WorkspaceOneSetup.ps1 -UseEnvFile
+
+# Run the migration process with Azure Key Vault
+.\src\scripts\Invoke-WorkspaceOneSetup.ps1 -UseKeyVault -KeyVaultName "WS1MigrationVault"
+
+# Run with standard admin account
+.\src\scripts\Invoke-WorkspaceOneSetup.ps1 -UseKeyVault -KeyVaultName "WS1MigrationVault" -StandardAdminAccount "MigrationAdmin"
+```
+
+### Environment Variable Mapping
+
+The following environment variables are mapped to settings:
+
+| Environment Variable | Settings.json Path |
+|----------------------|-------------------|
+| AZURE_CLIENT_ID | targetTenant.clientID |
+| AZURE_CLIENT_SECRET | targetTenant.clientSecret |
+| AZURE_TENANT_ID | targetTenant.tenantID |
+| AZURE_TENANT_NAME | targetTenant.tenantName |
+| WS1_HOST | ws1host |
+| WS1_USERNAME | ws1username |
+| WS1_PASSWORD | ws1password |
+| WS1_API_KEY | ws1apikey |
+| LOCAL_PATH | localPath |
+| LOG_PATH | logPath |
+| REG_PATH | regPath |
+| GROUP_TAG | groupTag |
+| BITLOCKER_METHOD | bitlockerMethod |
+
 ## Security Best Practices
 
 1. **Separate Credentials by Environment**: Use different credentials for dev/test/prod
