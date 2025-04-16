@@ -29,6 +29,19 @@ if (-not (Get-Module -Name 'LoggingModule' -ListAvailable)) {
     }
 }
 
+# Import SecureCredentialProvider if available
+$secureCredentialProviderPath = Join-Path -Path $PSScriptRoot -ChildPath 'SecureCredentialProvider.psm1'
+$secureCredentialProviderAvailable = $false
+if (Test-Path -Path $secureCredentialProviderPath) {
+    try {
+        Import-Module -Name $secureCredentialProviderPath -Force
+        $secureCredentialProviderAvailable = $true
+        Write-Log -Message "SecureCredentialProvider module loaded successfully" -Level INFO
+    } catch {
+        Write-Log -Message "Failed to load SecureCredentialProvider module: $_" -Level WARNING
+    }
+}
+
 # Script level variables
 $script:SecurityConfig = @{
     AuditLogPath = Join-Path -Path $env:TEMP -ChildPath "WS1Migration\SecurityAudit"
@@ -38,6 +51,10 @@ $script:SecurityConfig = @{
     TlsVersion = "Tls12"
     RequireAdminForSensitiveOperations = $true
     UseWindowsCredentialManager = $true
+    UseKeyVault = $false
+    KeyVaultName = $null
+    UseEnvFile = $false
+    EnvFilePath = "./.env"
 }
 
 # Ensure audit log path exists
@@ -1015,9 +1032,368 @@ function Initialize-SecurityFoundation {
     }
 }
 
+<#
+.SYNOPSIS
+    Configures the module to use Azure Key Vault for credential storage.
+    
+.DESCRIPTION
+    Enables Azure Key Vault integration for secure credential storage and retrieval
+    using the SecureCredentialProvider module.
+    
+.PARAMETER KeyVaultName
+    The name of the Azure Key Vault to use.
+    
+.PARAMETER EnvFilePath
+    Optional path to a .env file containing environment variables.
+    
+.PARAMETER StandardAdminAccount
+    Optional username of a standard admin account to use for privileged operations.
+    
+.EXAMPLE
+    Enable-KeyVaultIntegration -KeyVaultName "MigrationKeyVault"
+    
+.EXAMPLE
+    Enable-KeyVaultIntegration -KeyVaultName "MigrationKeyVault" -EnvFilePath "./.env" -StandardAdminAccount "MigrationAdmin"
+    
+.OUTPUTS
+    System.Boolean. Returns $true if Key Vault integration was enabled successfully.
+#>
+function Enable-KeyVaultIntegration {
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$KeyVaultName,
+        
+        [Parameter(Mandatory = $false)]
+        [string]$EnvFilePath = "./.env",
+        
+        [Parameter(Mandatory = $false)]
+        [string]$StandardAdminAccount
+    )
+    
+    # Verify SecureCredentialProvider is available
+    if (-not $secureCredentialProviderAvailable) {
+        Write-SecurityAuditLog -Message "Cannot enable Key Vault integration - SecureCredentialProvider module not available" -Level Error
+        return $false
+    }
+    
+    try {
+        # Update security configuration
+        $script:SecurityConfig.UseKeyVault = $true
+        $script:SecurityConfig.KeyVaultName = $KeyVaultName
+        $script:SecurityConfig.EnvFilePath = $EnvFilePath
+        
+        # Initialize the SecureCredentialProvider
+        $initParams = @{
+            KeyVaultName = $KeyVaultName
+            UseKeyVault = $true
+        }
+        
+        if ([System.IO.File]::Exists($EnvFilePath)) {
+            $initParams.EnvFilePath = $EnvFilePath
+            $initParams.UseEnvFile = $true
+            $script:SecurityConfig.UseEnvFile = $true
+        }
+        
+        if (-not [string]::IsNullOrEmpty($StandardAdminAccount)) {
+            $initParams.StandardAdminAccount = $StandardAdminAccount
+        }
+        
+        $result = Initialize-SecureCredentialProvider @initParams
+        
+        if ($result) {
+            Write-SecurityAuditLog -Message "Key Vault integration enabled successfully with vault: $KeyVaultName" -Level Information
+            return $true
+        } else {
+            Write-SecurityAuditLog -Message "Failed to initialize SecureCredentialProvider" -Level Error
+            return $false
+        }
+    }
+    catch {
+        Write-SecurityAuditLog -Message "Error enabling Key Vault integration: $_" -Level Error
+        return $false
+    }
+}
+
+<#
+.SYNOPSIS
+    Stores a credential securely in Azure Key Vault.
+    
+.DESCRIPTION
+    Uses the SecureCredentialProvider to securely store credentials in Azure Key Vault.
+    
+.PARAMETER Name
+    The name/identifier for the credential.
+    
+.PARAMETER Credential
+    The PSCredential object containing the username and password.
+    
+.EXAMPLE
+    $cred = Get-Credential
+    Set-KeyVaultCredential -Name "ApiAccess" -Credential $cred
+    
+.OUTPUTS
+    System.Boolean. Returns $true if the credential was stored successfully.
+#>
+function Set-KeyVaultCredential {
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$Name,
+        
+        [Parameter(Mandatory = $true)]
+        [System.Management.Automation.PSCredential]$Credential
+    )
+    
+    # Verify Key Vault integration is enabled
+    if (-not $script:SecurityConfig.UseKeyVault -or -not $secureCredentialProviderAvailable) {
+        Write-SecurityAuditLog -Message "Key Vault integration not enabled" -Level Error
+        return $false
+    }
+    
+    try {
+        $result = Set-SecureCredential -CredentialName $Name -Credential $Credential
+        
+        if ($result) {
+            Write-SecurityAuditLog -Message "Credential '$Name' stored successfully in Key Vault" -Level Information
+            return $true
+        } else {
+            Write-SecurityAuditLog -Message "Failed to store credential '$Name' in Key Vault" -Level Error
+            return $false
+        }
+    }
+    catch {
+        Write-SecurityAuditLog -Message "Error storing credential in Key Vault: $_" -Level Error
+        return $false
+    }
+}
+
+<#
+.SYNOPSIS
+    Retrieves a credential from Azure Key Vault.
+    
+.DESCRIPTION
+    Uses the SecureCredentialProvider to retrieve credentials from Azure Key Vault.
+    
+.PARAMETER Name
+    The name/identifier of the credential to retrieve.
+    
+.PARAMETER AllowInteractive
+    If set, allows prompting the user for credentials if not found in Key Vault.
+    
+.EXAMPLE
+    $cred = Get-KeyVaultCredential -Name "ApiAccess"
+    
+.EXAMPLE
+    $cred = Get-KeyVaultCredential -Name "ApiAccess" -AllowInteractive
+    
+.OUTPUTS
+    System.Management.Automation.PSCredential. The retrieved credential.
+#>
+function Get-KeyVaultCredential {
+    [CmdletBinding()]
+    [OutputType([System.Management.Automation.PSCredential])]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$Name,
+        
+        [Parameter(Mandatory = $false)]
+        [switch]$AllowInteractive
+    )
+    
+    # Verify Key Vault integration is enabled
+    if (-not $script:SecurityConfig.UseKeyVault -or -not $secureCredentialProviderAvailable) {
+        Write-SecurityAuditLog -Message "Key Vault integration not enabled" -Level Error
+        return $null
+    }
+    
+    try {
+        $credential = Get-SecureCredential -CredentialName $Name -AllowInteractive:$AllowInteractive
+        
+        if ($credential) {
+            Write-SecurityAuditLog -Message "Credential '$Name' retrieved successfully from Key Vault" -Level Information
+            return $credential
+        } else {
+            Write-SecurityAuditLog -Message "Credential '$Name' not found in Key Vault" -Level Warning
+            return $null
+        }
+    }
+    catch {
+        Write-SecurityAuditLog -Message "Error retrieving credential from Key Vault: $_" -Level Error
+        return $null
+    }
+}
+
+<#
+.SYNOPSIS
+    Stores a secret in Azure Key Vault.
+    
+.DESCRIPTION
+    Uses the SecureCredentialProvider to store a secret in Azure Key Vault.
+    
+.PARAMETER Name
+    The name of the secret.
+    
+.PARAMETER SecretValue
+    The secret value to store, either as a string or SecureString.
+    
+.EXAMPLE
+    Set-KeyVaultSecret -Name "ApiKey" -SecretValue "1234567890"
+    
+.EXAMPLE
+    $secureValue = ConvertTo-SecureString "1234567890" -AsPlainText -Force
+    Set-KeyVaultSecret -Name "ApiKey" -SecretValue $secureValue
+    
+.OUTPUTS
+    System.Boolean. Returns $true if the secret was stored successfully.
+#>
+function Set-KeyVaultSecret {
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$Name,
+        
+        [Parameter(Mandatory = $true)]
+        [object]$SecretValue
+    )
+    
+    # Verify Key Vault integration is enabled
+    if (-not $script:SecurityConfig.UseKeyVault -or -not $secureCredentialProviderAvailable) {
+        Write-SecurityAuditLog -Message "Key Vault integration not enabled" -Level Error
+        return $false
+    }
+    
+    try {
+        $result = Set-SecretInKeyVault -SecretName $Name -SecretValue $SecretValue
+        
+        if ($result) {
+            Write-SecurityAuditLog -Message "Secret '$Name' stored successfully in Key Vault" -Level Information
+            return $true
+        } else {
+            Write-SecurityAuditLog -Message "Failed to store secret '$Name' in Key Vault" -Level Error
+            return $false
+        }
+    }
+    catch {
+        Write-SecurityAuditLog -Message "Error storing secret in Key Vault: $_" -Level Error
+        return $false
+    }
+}
+
+<#
+.SYNOPSIS
+    Retrieves a secret from Azure Key Vault.
+    
+.DESCRIPTION
+    Uses the SecureCredentialProvider to retrieve a secret from Azure Key Vault.
+    
+.PARAMETER Name
+    The name of the secret to retrieve.
+    
+.PARAMETER AsPlainText
+    If set, returns the secret as plain text. Otherwise, returns as SecureString.
+    
+.EXAMPLE
+    $apiKey = Get-KeyVaultSecret -Name "ApiKey" -AsPlainText
+    
+.EXAMPLE
+    $secureApiKey = Get-KeyVaultSecret -Name "ApiKey"
+    
+.OUTPUTS
+    System.Object. Returns either a SecureString or a String depending on AsPlainText.
+#>
+function Get-KeyVaultSecret {
+    [CmdletBinding()]
+    [OutputType([object])]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$Name,
+        
+        [Parameter(Mandatory = $false)]
+        [switch]$AsPlainText
+    )
+    
+    # Verify Key Vault integration is enabled
+    if (-not $script:SecurityConfig.UseKeyVault -or -not $secureCredentialProviderAvailable) {
+        Write-SecurityAuditLog -Message "Key Vault integration not enabled" -Level Error
+        return $null
+    }
+    
+    try {
+        $secret = Get-SecretFromKeyVault -SecretName $Name -AsPlainText:$AsPlainText
+        
+        if ($null -ne $secret) {
+            Write-SecurityAuditLog -Message "Secret '$Name' retrieved successfully from Key Vault" -Level Information
+            return $secret
+        } else {
+            Write-SecurityAuditLog -Message "Secret '$Name' not found in Key Vault" -Level Warning
+            return $null
+        }
+    }
+    catch {
+        Write-SecurityAuditLog -Message "Error retrieving secret from Key Vault: $_" -Level Error
+        return $null
+    }
+}
+
+<#
+.SYNOPSIS
+    Gets admin credentials, either from Key Vault or using temporary admin.
+    
+.DESCRIPTION
+    Retrieves admin credentials for privileged operations, either using the standard
+    admin account from Key Vault or creating a temporary admin account.
+    
+.PARAMETER AllowTemporaryAdmin
+    If set and standard admin isn't available via Key Vault, allows creation of a temporary admin account.
+    
+.EXAMPLE
+    $adminCred = Get-AdminAccountCredential -AllowTemporaryAdmin
+    
+.OUTPUTS
+    System.Management.Automation.PSCredential. The admin credentials.
+#>
+function Get-AdminAccountCredential {
+    [CmdletBinding()]
+    [OutputType([System.Management.Automation.PSCredential])]
+    param (
+        [Parameter(Mandatory = $false)]
+        [switch]$AllowTemporaryAdmin
+    )
+    
+    # Check if Key Vault integration is enabled and SecureCredentialProvider is available
+    if ($script:SecurityConfig.UseKeyVault -and $secureCredentialProviderAvailable) {
+        try {
+            $adminCred = Get-AdminCredential -AllowTemporaryAdmin:$AllowTemporaryAdmin
+            
+            if ($adminCred) {
+                Write-SecurityAuditLog -Message "Admin credentials retrieved successfully" -Level Information
+                return $adminCred
+            }
+        }
+        catch {
+            Write-SecurityAuditLog -Message "Error retrieving admin credentials from Key Vault: $_" -Level Warning
+        }
+    }
+    
+    # Fall back to legacy method if Key Vault integration failed or isn't enabled
+    if ($AllowTemporaryAdmin) {
+        Write-SecurityAuditLog -Message "Falling back to creating temporary admin account" -Level Information
+        return New-TemporaryAdminAccount
+    } else {
+        Write-SecurityAuditLog -Message "Admin credentials not available and creation of temporary admin not allowed" -Level Error
+        return $null
+    }
+}
+
 #endregion
 
 # Export public functions
 Export-ModuleMember -Function Set-SecurityConfiguration, Protect-SensitiveData, Unprotect-SensitiveData,
     Invoke-ElevatedOperation, Set-SecureCredential, Get-SecureCredential, Invoke-SecureWebRequest,
-    Write-SecurityEvent, Test-SecurityRequirements, Initialize-SecurityFoundation 
+    Write-SecurityEvent, Test-SecurityRequirements, Initialize-SecurityFoundation,
+    Enable-KeyVaultIntegration, Set-KeyVaultCredential, Get-KeyVaultCredential,
+    Set-KeyVaultSecret, Get-KeyVaultSecret, Get-AdminAccountCredential 
