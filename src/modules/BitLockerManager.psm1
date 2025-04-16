@@ -236,7 +236,7 @@ function Connect-AzureKeyVault {
                     Write-Log -Message "Successfully installed module: $module" -Level Information
                 }
                 catch {
-                    Write-Log -Message "Failed to install module $module: $_" -Level Error
+                    Write-Log -Message ('Failed to install module {0}: {1}' -f $module, $_) -Level Error
                     throw "Failed to install required module $module. Please install it manually or ensure internet connectivity."
                 }
             }
@@ -313,7 +313,7 @@ function Connect-AzureKeyVault {
             }
         }
         catch {
-            Write-Log -Message "Failed to access Key Vault $KeyVaultName: $_" -Level Error
+            Write-Log -Message ('Failed to access Key Vault {0}: {1}' -f $KeyVaultName, $_) -Level Error
             
             # Clear connection info
             $script:KeyVaultConnection = $null
@@ -550,7 +550,7 @@ function Test-BitLockerEncryption {
                 HasRecoveryKey = $volume.KeyProtector.KeyProtectorType -contains "RecoveryPassword"
             }
             
-            Write-Log -Message "BitLocker status for drive $DriveLetter: $($result.VolumeStatus), Protection: $($result.ProtectionStatus)" -Level Information
+            Write-Log -Message ('BitLocker status for drive {0}: {1}, Protection: {2}' -f $DriveLetter, $result.VolumeStatus, $result.ProtectionStatus) -Level Information
             return $result
         }
         else {

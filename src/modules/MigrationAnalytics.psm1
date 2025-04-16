@@ -876,7 +876,7 @@ function Register-ComponentUsage {
     # Save metrics
     Save-MigrationMetrics -Metrics $metrics
     
-    Write-Log -Message "Registered usage for component $ComponentName: $Invocations invocations, $Successes successes, $Failures failures" -Level Information
+    Write-Log -Message ('Registered usage for component {0}: {1} invocations, {2} successes, {3} failures' -f $ComponentName, $Invocations, $Successes, $Failures) -Level Information
     return $true
 }
 

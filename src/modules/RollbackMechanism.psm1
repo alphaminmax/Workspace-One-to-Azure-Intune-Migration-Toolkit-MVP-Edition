@@ -584,7 +584,7 @@ function Restore-WorkspaceOneMigration {
                         Start-Service -Name $serviceName -ErrorAction SilentlyContinue
                         Write-Log -Message "$serviceName started successfully" -Level Information
                     } catch {
-                        Write-Log -Message "Failed to restart $serviceName: $_" -Level Warning
+                        Write-Log -Message ("Failed to restart " + $serviceName + ": " + $_) -Level Warning
                     }
                 }
             }
