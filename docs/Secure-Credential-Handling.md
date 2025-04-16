@@ -1,198 +1,151 @@
-# Secure Credential Handling
+# Secure Credential Handling in Migration Toolkit
 
-This document outlines best practices for managing credentials and sensitive configuration data when using the Workspace One to Azure/Intune Migration Toolkit.
+This documentation provides guidance on how to securely manage credentials and secrets in the Workspace ONE to Azure/Intune Migration Toolkit using the SecureCredentialProvider module.
 
 ## Overview
 
-The migration toolkit requires credentials and connection information for both Workspace ONE and Microsoft Azure/Intune environments. Handling these credentials securely is crucial to maintain the security of your migration process.
+The SecureCredentialProvider module delivers a robust, layered approach to credential management for the migration toolkit. It provides secure storage and retrieval of credentials through multiple methods, with Azure Key Vault integration as the preferred secure option.
 
-## Credential Types
+## Key Features
 
-The toolkit works with several types of sensitive data:
+- **Azure Key Vault Integration**: Store and retrieve credentials and secrets in Azure Key Vault
+- **Environment Variable Support**: Fall back to environment variables when Key Vault is not available
+- **Interactive Fallback**: Optionally prompt for credentials when not found in secure storage
+- **Admin Credential Management**: Simplify administrative operations with standard or temporary admin accounts
+- **Error Handling and Logging**: Comprehensive error handling and integration with LoggingModule
 
-1. **Azure AD/Intune Credentials**
-   - Client ID
-   - Client Secret
-   - Tenant ID
-   - Tenant Name
+## Prerequisites
 
-2. **Workspace ONE Credentials**
-   - API Host
-   - Username
-   - Password
-   - API Key
+- PowerShell 5.1 or later
+- Az.KeyVault PowerShell module
+- Azure subscription with Key Vault access (for Key Vault integration)
 
-3. **BitLocker Recovery Keys**
-   - Recovery passwords
-   - Key protector IDs
+## Module Installation
 
-## Secure Storage Options
-
-### 1. Environment Variables (Recommended for Development)
-
-Use environment variables to avoid storing credentials in configuration files:
+The SecureCredentialProvider module is included with the Migration Toolkit. Ensure the Az.KeyVault module is installed:
 
 ```powershell
-# Set environment variables for Azure credentials
-$env:AZURE_CLIENT_ID = "your-client-id"
-$env:AZURE_CLIENT_SECRET = "your-client-secret"
-$env:AZURE_TENANT_ID = "your-tenant-id"
-
-# Set environment variables for Workspace ONE credentials
-$env:WS1_HOST = "your-ws1-host"
-$env:WS1_USERNAME = "your-username"
-$env:WS1_PASSWORD = "your-password"
-$env:WS1_API_KEY = "your-api-key"
-
-# Run the migration with environment variables
-.\src\scripts\Invoke-WorkspaceOneSetup.ps1 -UseEnvironmentVariables
+Install-Module -Name Az.KeyVault -Scope CurrentUser -Force
 ```
 
-### 2. Azure Key Vault (Recommended for Production)
+## Getting Started
 
-For production environments, store credentials in Azure Key Vault:
+### Initializing the Provider
 
-1. **Store secrets in Key Vault**:
-   ```powershell
-   Set-AzKeyVaultSecret -VaultName "MigrationKeyVault" -Name "WS1-ApiKey" -SecretValue (ConvertTo-SecureString "your-api-key" -AsPlainText -Force)
-   ```
-
-2. **Configure the toolkit to use Key Vault**:
-   ```powershell
-   .\src\scripts\Invoke-WorkspaceOneSetup.ps1 -UseKeyVault -KeyVaultName "MigrationKeyVault"
-   ```
-
-### 3. Windows Credential Manager
-
-For local deployments, use the Windows Credential Manager:
+Before using the credential provider, initialize it with your preferred configuration:
 
 ```powershell
-# Store credentials in Windows Credential Manager
-$cred = Get-Credential -Message "Enter Workspace ONE credentials"
-New-StoredCredential -Target "WS1Migration" -UserName $cred.UserName -Password $cred.GetNetworkCredential().Password -Persist LocalMachine
+# Initialize with Azure Key Vault
+Initialize-SecureCredentialProvider -KeyVaultName "MigrationKeyVault" -UseKeyVault -StandardAdminAccount "admin"
 
-# Reference them in the toolkit
-.\src\scripts\Invoke-WorkspaceOneSetup.ps1 -UseCredentialManager -CredentialTarget "WS1Migration"
+# Initialize with environment variables from .env file
+Initialize-SecureCredentialProvider -EnvFilePath "./.env" -UseEnvFile
+
+# Initialize with both Key Vault and environment variables
+Initialize-SecureCredentialProvider -KeyVaultName "MigrationKeyVault" -UseKeyVault -EnvFilePath "./.env" -UseEnvFile
 ```
 
-### 4. Configuration Files (Not Recommended for Production)
+### Retrieving Credentials
 
-For testing only, you can use configuration files with these safeguards:
-
-1. Store the config file outside the repository
-2. Ensure strict file permissions
-3. Delete the file after use
-4. Never commit files with real credentials
-
-## Secure Configuration File Practices
-
-When using configuration files:
-
-1. **Use the template file** as a starting point:
-   ```powershell
-   Copy-Item -Path .\config\settings.json -Destination C:\Secure\settings.local.json
-   ```
-
-2. **Set strict permissions** on the local file:
-   ```powershell
-   $acl = Get-Acl -Path C:\Secure\settings.local.json
-   $acl.SetAccessRuleProtection($true, $false)
-   $rule = New-Object System.Security.AccessControl.FileSystemAccessRule("$env:USERNAME", "FullControl", "Allow")
-   $acl.AddAccessRule($rule)
-   Set-Acl -Path C:\Secure\settings.local.json -AclObject $acl
-   ```
-
-3. **Reference the external config** file:
-   ```powershell
-   .\src\scripts\Invoke-WorkspaceOneSetup.ps1 -ConfigPath "C:\Secure\settings.local.json"
-   ```
-
-## BitLocker Key Security
-
-BitLocker keys require special handling:
-
-1. **Temporary Storage**: Keys are stored in memory only during the migration process
-2. **Secure Backup**: Keys are backed up to Azure AD/Intune before migration
-3. **Key Verification**: All backed-up keys are verified after migration
-4. **Audit Logging**: All operations involving recovery keys are logged with timestamps
-
-## Automation Considerations
-
-When using the toolkit in automated deployments:
-
-1. **Pipeline Variables**: Use pipeline variables/secrets for credentials
-2. **Just-In-Time Access**: Generate short-lived application tokens
-3. **Scoped Permissions**: Use the principle of least privilege
-4. **Credential Rotation**: Rotate credentials regularly
-5. **Audit Logs**: Monitor credential usage
-
-## Automated Settings Update
-
-The toolkit now includes a dedicated script (`Update-SettingsFromEnv.ps1`) that automatically reads values from environment variables or Azure Key Vault and updates the `settings.json` file. This ensures that sensitive credentials are never stored directly in the settings file.
-
-### Using the Settings Update Script
+Once initialized, retrieve credentials using the following methods:
 
 ```powershell
-# Update settings from .env file
-.\src\scripts\Update-SettingsFromEnv.ps1 -EnvFilePath "./.env"
+# Get credential from secure storage
+$apiCred = Get-SecureCredential -CredentialName "WorkspaceOneAPI"
 
-# Update settings from Azure Key Vault
-.\src\scripts\Update-SettingsFromEnv.ps1 -UseKeyVault -KeyVaultName "WS1MigrationVault"
+# Get credential with interactive fallback if not found
+$intuneCredential = Get-SecureCredential -CredentialName "IntuneAPI" -AllowInteractive
 
-# Update settings from both .env and Azure Key Vault
-.\src\scripts\Update-SettingsFromEnv.ps1 -UseKeyVault -KeyVaultName "WS1MigrationVault" -EnvFilePath "./.env"
+# Get admin credentials for privileged operations
+$adminCred = Get-AdminCredential -AllowTemporaryAdmin
 ```
 
-### Integration with Main Scripts
+### Storing Credentials in Key Vault
 
-The main toolkit scripts (like `Invoke-WorkspaceOneSetup.ps1`) now include parameters to automatically update settings before execution:
+Store credentials securely in Azure Key Vault:
 
 ```powershell
-# Run the migration process with .env settings
-.\src\scripts\Invoke-WorkspaceOneSetup.ps1 -UseEnvFile
-
-# Run the migration process with Azure Key Vault
-.\src\scripts\Invoke-WorkspaceOneSetup.ps1 -UseKeyVault -KeyVaultName "WS1MigrationVault"
-
-# Run with standard admin account
-.\src\scripts\Invoke-WorkspaceOneSetup.ps1 -UseKeyVault -KeyVaultName "WS1MigrationVault" -StandardAdminAccount "MigrationAdmin"
+# Create a credential and store it
+$credential = Get-Credential -Message "Enter API credentials"
+Set-SecureCredential -CredentialName "WorkspaceOneAPI" -Credential $credential
 ```
 
-### Environment Variable Mapping
+### Storing and Retrieving Secrets
 
-The following environment variables are mapped to settings:
+For API keys and other secrets that are not username/password pairs:
 
-| Environment Variable | Settings.json Path |
-|----------------------|-------------------|
-| AZURE_CLIENT_ID | targetTenant.clientID |
-| AZURE_CLIENT_SECRET | targetTenant.clientSecret |
-| AZURE_TENANT_ID | targetTenant.tenantID |
-| AZURE_TENANT_NAME | targetTenant.tenantName |
-| WS1_HOST | ws1host |
-| WS1_USERNAME | ws1username |
-| WS1_PASSWORD | ws1password |
-| WS1_API_KEY | ws1apikey |
-| LOCAL_PATH | localPath |
-| LOG_PATH | logPath |
-| REG_PATH | regPath |
-| GROUP_TAG | groupTag |
-| BITLOCKER_METHOD | bitlockerMethod |
+```powershell
+# Store a secret
+Set-SecretInKeyVault -SecretName "APIKey" -SecretValue "your-api-key"
 
-## Security Best Practices
+# Retrieve a secret
+$apiKey = Get-SecretFromKeyVault -SecretName "APIKey" -AsPlainText
+```
 
-1. **Separate Credentials by Environment**: Use different credentials for dev/test/prod
-2. **Principle of Least Privilege**: Assign minimal required permissions
-3. **Audit Trail**: Monitor and log all credential usage
-4. **Rotation Schedule**: Regularly rotate all credentials
-5. **Secure Transport**: Always use HTTPS/TLS for API communication
-6. **Post-Migration Cleanup**: Remove or rotate credentials after migration
+## Security Considerations
+
+1. **Key Vault Access Control**: Ensure Azure Key Vault access is restricted to appropriate users and service principals
+2. **Environment Variables**: When using environment variables, ensure .env files are excluded from source control
+3. **Temporary Admin Accounts**: Use temporary admin accounts only when necessary and ensure they're removed after use
+4. **Credential Rotation**: Implement regular credential rotation as part of your security practices
+
+## Integration with Other Modules
+
+The SecureCredentialProvider integrates with several other modules in the toolkit:
+
+- **LoggingModule**: For comprehensive logging of credential operations
+- **SecurityFoundation**: For broader security capabilities
+- **GraphAPIIntegration**: For secure access to Microsoft Graph API
+- **PrivilegeManagement**: For temporary admin account creation when needed
 
 ## Troubleshooting
 
-If you encounter credential-related issues:
+Common issues and solutions:
 
-1. Verify environment variables are set correctly
-2. Check Key Vault access permissions
-3. Ensure service principals have required permissions
-4. Verify network connectivity to authentication endpoints
-5. Check credential expiration dates 
+1. **Key Vault Connection Failures**:
+   - Ensure you have proper permissions to the Key Vault
+   - Check network connectivity to Azure
+   - Verify Azure context is properly authenticated
+
+2. **Missing Credentials**:
+   - Ensure credential names match exactly when storing and retrieving
+   - Check if environment variables are properly set in the current session
+
+3. **Permission Issues**:
+   - For admin operations, ensure you're running PowerShell as administrator
+   - Verify service principal permissions in Azure AD
+
+## Examples
+
+### Complete Workflow Example
+
+```powershell
+# Import the module
+Import-Module "./src/modules/SecureCredentialProvider.psm1"
+
+# Initialize with Key Vault
+Initialize-SecureCredentialProvider -KeyVaultName "MigrationKeyVault" -UseKeyVault
+
+# Store API credentials
+$cred = Get-Credential -Message "Enter Workspace ONE API credentials"
+Set-SecureCredential -CredentialName "WorkspaceOneAPI" -Credential $cred
+
+# Store an API key
+Set-SecretInKeyVault -SecretName "IntuneAPIKey" -SecretValue "your-api-key-here"
+
+# Later, retrieve and use the credentials
+$apiCred = Get-SecureCredential -CredentialName "WorkspaceOneAPI"
+$apiKey = Get-SecretFromKeyVault -SecretName "IntuneAPIKey" -AsPlainText
+
+# Use admin credentials for privileged operations
+$adminCred = Get-AdminCredential -AllowTemporaryAdmin
+```
+
+## Best Practices
+
+1. Always initialize the provider at the beginning of your scripts
+2. Use descriptive credential names for easy identification
+3. Implement proper error handling around credential operations
+4. Avoid storing credentials in script files or source control
+5. Use the `-AllowInteractive` parameter only when appropriate for your scenario
+6. Log credential operations (success/failure) but never log the credentials themselves 

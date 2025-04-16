@@ -2,212 +2,426 @@
 
 ## Overview
 
-The Graph API Integration module provides a standardized interface for interacting with Microsoft Graph API. This module enables key functionality for Azure/Intune operations including BitLocker recovery key migration, device management, user management, and more.
+The GraphAPIIntegration module provides a comprehensive interface for interacting with Microsoft Graph API within the migration toolkit. It enables the migration process to access and manage Azure AD and Microsoft Intune resources, with specific focus on BitLocker recovery key migration and device management operations.
 
 ## Key Features
 
-- **Modern Authentication** - Uses MSAL (Microsoft Authentication Library) for secure authentication
-- **Caching Support** - Improves performance by caching API responses
-- **Retry Logic** - Implements exponential backoff and intelligent retry for reliability
-- **Error Handling** - Comprehensive error handling with detailed logging
-- **BitLocker Integration** - Specialized functions for managing BitLocker recovery keys
-- **Helper Functions** - Simplified access to common Graph API operations
+- **Simplified Authentication**: Streamlined authentication to Microsoft Graph API using modern authentication methods
+- **BitLocker Recovery Key Management**: Extract and migrate BitLocker keys to Azure AD
+- **Request Caching**: Efficient caching mechanism to reduce API calls and improve performance
+- **Retry Logic**: Built-in retry capability for handling transient API failures
+- **Error Handling**: Comprehensive error management with detailed logging
+- **Device Management**: Functions for retrieving and managing device information
+- **User Management**: Functions for retrieving user information and relationships
 
 ## Prerequisites
 
-- Windows 10 (1809+) or Windows 11
-- PowerShell 5.1+
-- Microsoft.Graph.Intune module
-- MSAL.PS module (optional, will be auto-installed if missing)
-- Network connectivity to Graph API endpoints
-- Azure AD application with appropriate permissions
+- PowerShell 5.1 or higher
+- The following PowerShell modules:
+  - Microsoft.Graph.Intune
+  - MSAL.PS
+  - Microsoft.Graph.Authentication
+- Network connectivity to Microsoft Graph endpoints
+- Appropriate permissions configured in Azure AD
 
-## Module Setup
+## Module Functions
 
-### Installation
+### Core Authentication Functions
 
-The GraphAPIIntegration module is part of the WS1 Migration Toolkit and is automatically available when the toolkit is installed. No separate installation is required.
+#### Initialize-GraphApiIntegration
+Initializes the Graph API integration module with required configuration.
 
-### Configuration
+**Parameters:**
+- `ClientId` (String): The Azure AD application client ID
+- `TenantId` (String): The Azure AD tenant ID
+- `ClientSecret` (SecureString): The client secret for the application, if using app authentication
+- `CertificateThumbprint` (String): The certificate thumbprint for certificate-based authentication
+- `UseUserAuth` (Boolean): Whether to use interactive user authentication instead of service principal
+- `ApiVersion` (String): The Graph API version to use (default: "v1.0")
+- `CacheLocation` (String): The location to store the authentication cache
 
-The module requires a configuration file (`config/settings.json`) with the following structure:
+**Example:**
+```powershell
+# Initialize with client secret authentication
+Initialize-GraphApiIntegration -ClientId "12345678-abcd-1234-efgh-1234567890ab" `
+                              -TenantId "87654321-abcd-1234-efgh-1234567890ab" `
+                              -ClientSecret $secureClientSecret `
+                              -ApiVersion "v1.0"
 
-```json
-{
-  "targetTenant": {
-    "clientID": "00000000-0000-0000-0000-000000000000",
-    "clientSecret": "your-client-secret",
-    "tenantName": "contoso.com",
-    "tenantID": "00000000-0000-0000-0000-000000000000"
-  },
-  "bitlockerMethod": "MIGRATE"
+# Initialize with certificate authentication
+Initialize-GraphApiIntegration -ClientId "12345678-abcd-1234-efgh-1234567890ab" `
+                              -TenantId "87654321-abcd-1234-efgh-1234567890ab" `
+                              -CertificateThumbprint "ABCDEF1234567890ABCDEF1234567890ABCDEF12" `
+                              -ApiVersion "v1.0"
+
+# Initialize with user authentication
+Initialize-GraphApiIntegration -UseUserAuth $true `
+                              -TenantId "87654321-abcd-1234-efgh-1234567890ab"
+```
+
+#### Get-GraphApiAuthToken
+Obtains an authentication token for Microsoft Graph API.
+
+**Parameters:**
+- `TokenCache` (PSObject): Optional parameter to pass an existing token cache
+- `Force` (Boolean): Forces a new token to be obtained, ignoring any cached token
+
+**Example:**
+```powershell
+$token = Get-GraphApiAuthToken
+$token = Get-GraphApiAuthToken -Force $true
+```
+
+#### Connect-MicrosoftGraph
+Establishes a connection to Microsoft Graph API.
+
+**Parameters:**
+- `Token` (PSObject): The authentication token object
+- `ApiVersion` (String): The API version to connect to (default: "v1.0")
+
+**Example:**
+```powershell
+Connect-MicrosoftGraph -Token $token -ApiVersion "beta"
+```
+
+### API Request Functions
+
+#### Invoke-GraphApiRequest
+Makes a request to the Microsoft Graph API.
+
+**Parameters:**
+- `Method` (String): The HTTP method to use (GET, POST, PATCH, DELETE)
+- `Endpoint` (String): The API endpoint to call
+- `Body` (PSObject): The request body for POST/PATCH requests
+- `ContentType` (String): The content type for the request
+- `Headers` (Hashtable): Additional headers to include
+- `MaxRetries` (Int): Maximum number of retry attempts
+- `UseCache` (Boolean): Whether to use request caching
+
+**Example:**
+```powershell
+# Get all users
+$users = Invoke-GraphApiRequest -Method "GET" -Endpoint "/users"
+
+# Create a new group
+$groupBody = @{
+    displayName = "Migration Group"
+    mailEnabled = $false
+    securityEnabled = $true
+    mailNickname = "migrationgroup"
 }
+$newGroup = Invoke-GraphApiRequest -Method "POST" -Endpoint "/groups" -Body $groupBody -ContentType "application/json"
 ```
 
-## Core Functions
+### BitLocker Functions
 
-### Authentication
+#### Get-BitLockerRecoveryKey
+Retrieves BitLocker recovery keys from the local system.
 
-- `Initialize-GraphAPIIntegration` - Set up Graph API integration with configuration
-- `Get-MsalToken` - Get authentication token using MSAL
-- `Connect-MsGraph` - Establish connection to Microsoft Graph API
+**Parameters:**
+- `VolumeType` (String): Filter for specific volume types ("OperatingSystem", "Fixed", "Removable", "All")
+- `IncludeDetails` (Boolean): Whether to include detailed volume information
 
-### API Operations
-
-- `Invoke-GraphApiRequest` - Make requests to Microsoft Graph API with caching and retry support
-
-### BitLocker Operations
-
-- `Get-BitLockerRecoveryKey` - Extract BitLocker recovery key from local device
-- `Backup-BitLockerKeyToAzureAD` - Back up BitLocker recovery key to Azure AD
-- `Confirm-BitLockerKeyBackup` - Verify BitLocker key backup in Azure AD
-- `Migrate-BitLockerKeys` - Migrate all BitLocker keys to Azure AD
-
-### Helper Functions
-
-- `Get-GraphDevice` - Get device information from Intune/Azure AD
-- `Get-GraphUser` - Get user information from Azure AD
-- `Get-GraphBitLockerKeys` - Get BitLocker keys from Azure AD
-- `Set-DevicePrimaryUser` - Set primary user for device in Intune
-- `Register-DeviceWithAutopilot` - Register device with Windows Autopilot
-- `Get-DeviceComplianceStatus` - Get device compliance status
-- `Get-DeviceHardwareHash` - Extract hardware hash ID from local device
-- `Register-DeviceToAutopilot` - Extract hardware hash and register with Autopilot
-
-## Usage Examples
-
-### Initialize and Connect
-
+**Example:**
 ```powershell
-# Initialize the module with default configuration
-Initialize-GraphAPIIntegration
+# Get all BitLocker keys
+$allKeys = Get-BitLockerRecoveryKey
 
-# Connect to Microsoft Graph API
-Connect-MsGraph
+# Get only OS volume keys with details
+$osKeys = Get-BitLockerRecoveryKey -VolumeType "OperatingSystem" -IncludeDetails $true
 ```
 
-### BitLocker Key Migration
+#### Backup-BitLockerKeyToAzureAD
+Backs up a BitLocker recovery key to Azure AD.
 
+**Parameters:**
+- `RecoveryKey` (String): The BitLocker recovery key
+- `KeyId` (String): The BitLocker key ID
+- `DeviceId` (String): The Azure AD device ID
+- `VolumeType` (String): The type of volume the key is for
+
+**Example:**
 ```powershell
-# Migrate all BitLocker keys to Azure AD
-$results = Migrate-BitLockerKeys
-
-# Get detailed results
-$results | Format-List
-
-# Force migration even if not enabled in configuration
-Migrate-BitLockerKeys -ForceMigration
+Backup-BitLockerKeyToAzureAD -RecoveryKey "123456-123456-123456-123456-123456-123456-123456-123456" `
+                             -KeyId "00000000-0000-0000-0000-000000000000" `
+                             -DeviceId $azureDeviceId `
+                             -VolumeType "OperatingSystem"
 ```
 
-### Device Management
+#### Confirm-BitLockerKeyBackup
+Confirms that a BitLocker key was successfully backed up to Azure AD.
 
+**Parameters:**
+- `KeyId` (String): The BitLocker key ID
+- `DeviceId` (String): The Azure AD device ID
+
+**Example:**
 ```powershell
-# Get device by name
-$device = Get-GraphDevice -DeviceName "Laptop123"
-
-# Get all Windows devices
-$allDevices = Get-GraphDevice -Filter "operatingSystem eq 'Windows'"
-
-# Set primary user for a device
-Set-DevicePrimaryUser -DeviceId $device.id -UserId "user@contoso.com"
-
-# Check device compliance
-$complianceStatus = Get-DeviceComplianceStatus -DeviceId $device.id
+$backupSuccess = Confirm-BitLockerKeyBackup -KeyId "00000000-0000-0000-0000-000000000000" -DeviceId $azureDeviceId
 ```
 
-### BitLocker Key Management
+#### Migrate-BitLockerKeys
+Migrates BitLocker recovery keys from the local system to Azure AD.
 
+**Parameters:**
+- `DeviceId` (String): The Azure AD device ID
+- `VolumeTypes` (Array): Array of volume types to migrate keys for
+- `ValidateBackup` (Boolean): Whether to validate the backup was successful
+
+**Example:**
 ```powershell
-# Extract BitLocker key from C: drive
-$key = Get-BitLockerRecoveryKey -DriveLetter "C:"
+# Migrate all keys
+$migrationResult = Migrate-BitLockerKeys -DeviceId $azureDeviceId -ValidateBackup $true
 
-# Back up BitLocker key to Azure AD
-Backup-BitLockerKeyToAzureAD -DriveLetter "C:"
-
-# Verify BitLocker key is backed up
-$isBackedUp = Confirm-BitLockerKeyBackup -DriveLetter "C:"
-
-# Get all BitLocker keys for a device from Azure AD
-$deviceKeys = Get-GraphBitLockerKeys -DeviceId $device.id -IncludeKeyValue
+# Migrate only OS volume keys
+$migrationResult = Migrate-BitLockerKeys -DeviceId $azureDeviceId -VolumeTypes @("OperatingSystem") -ValidateBackup $true
 ```
 
-### Autopilot Registration
+### Device Management Functions
 
+#### Get-AzureADDeviceId
+Retrieves the Azure AD device ID for the current device.
+
+**Example:**
 ```powershell
-# Extract hardware hash from local device
-$hardwareInfo = Get-DeviceHardwareHash
-
-# Save hardware hash to file
-$hardwareInfo = Get-DeviceHardwareHash -OutputPath "C:\Temp\HardwareHash.csv"
-
-# Extract hardware hash and register with Autopilot in one step
-$result = Register-DeviceToAutopilot -GroupTag "Sales" -AssignedUser "user@contoso.com"
-
-# Register device on a specific platform
-$result = Register-DeviceToAutopilot -Platform "Windows" -GroupTag "IT"
-
-# Check if registration was successful
-if ($result.Success) {
-    Write-Host "Device registered successfully with serial number: $($result.SerialNumber)"
-}
+$deviceId = Get-AzureADDeviceId
 ```
 
-## Error Handling
+#### Get-DeviceInformation
+Retrieves device information from Microsoft Graph API.
 
-The GraphAPIIntegration module provides comprehensive error handling:
+**Parameters:**
+- `DeviceId` (String): The Azure AD device ID
+- `IncludeDetails` (Boolean): Whether to include additional device details
 
-1. All functions include try/catch blocks with detailed error logging
-2. API calls include intelligent retry with exponential backoff
-3. Authentication failures trigger automatic token refresh
-4. Response parsing includes detailed error information from Graph API
+**Example:**
+```powershell
+$deviceInfo = Get-DeviceInformation -DeviceId $deviceId -IncludeDetails $true
+```
 
-## API Permissions Required
+### User Management Functions
 
-The Azure AD application used for Graph API access should have the following permissions:
+#### Get-AzureADUserId
+Retrieves the Azure AD user ID for the specified user.
 
-- `DeviceManagementManagedDevices.Read.All` - Read device information
-- `DeviceManagementManagedDevices.ReadWrite.All` - Manage devices
-- `BitlockerKey.Read.All` - Read BitLocker keys
-- `BitlockerKey.ReadWrite.All` - Manage BitLocker keys
-- `User.Read.All` - Read user information
-- `Device.Read.All` - Read device information in Azure AD
+**Parameters:**
+- `UserPrincipalName` (String): The user principal name
+- `Email` (String): The user's email address
+
+**Example:**
+```powershell
+$userId = Get-AzureADUserId -UserPrincipalName "user@example.com"
+$userId = Get-AzureADUserId -Email "user@example.com"
+```
+
+#### Get-UserInformation
+Retrieves user information from Microsoft Graph API.
+
+**Parameters:**
+- `UserId` (String): The Azure AD user ID
+- `IncludeDetails` (Boolean): Whether to include additional user details
+
+**Example:**
+```powershell
+$userInfo = Get-UserInformation -UserId $userId -IncludeDetails $true
+```
 
 ## Integration with Other Modules
 
-The GraphAPIIntegration module integrates with:
+### SecurityFoundation Integration
 
-- **LoggingModule** - For comprehensive logging
-- **SecurityFoundation** - For secure credential management
-- **AutopilotIntegration** - For Windows Autopilot operations
+The GraphAPIIntegration module works closely with the SecurityFoundation module for secure credential management:
+
+```powershell
+# Import required modules
+Import-Module "src\modules\SecurityFoundation.psm1"
+Import-Module "src\modules\GraphAPIIntegration.psm1"
+
+# Initialize security foundation
+Initialize-SecurityFoundation -UseKeyVault $true -KeyVaultName "MigrationKeyVault"
+
+# Retrieve credentials securely
+$clientSecret = Get-AzureKeyVaultSecret -SecretName "GraphApiClientSecret"
+
+# Initialize Graph API integration with secure credentials
+Initialize-GraphApiIntegration -ClientId $clientId -TenantId $tenantId -ClientSecret $clientSecret
+```
+
+### SecureCredentialProvider Integration
+
+The module can also leverage the SecureCredentialProvider for credential management:
+
+```powershell
+# Import required modules
+Import-Module "src\modules\SecureCredentialProvider.psm1"
+Import-Module "src\modules\GraphAPIIntegration.psm1"
+
+# Initialize credential provider
+Initialize-CredentialProvider -KeyVaultName "MigrationKeyVault"
+
+# Retrieve credentials
+$clientId = Get-SecureCredential -Name "GraphApiClientId" -AsPlainText
+$clientSecret = Get-SecureCredential -Name "GraphApiClientSecret"
+
+# Initialize Graph API
+Initialize-GraphApiIntegration -ClientId $clientId -TenantId $tenantId -ClientSecret $clientSecret
+```
+
+## BitLocker Key Migration Process
+
+The BitLocker key migration process follows these steps:
+
+1. **Identify BitLocker-protected volumes**:
+   ```powershell
+   $bitlockerVolumes = Get-BitLockerRecoveryKey -IncludeDetails $true
+   ```
+
+2. **Get Azure AD device ID**:
+   ```powershell
+   $deviceId = Get-AzureADDeviceId
+   ```
+
+3. **Migrate keys to Azure AD**:
+   ```powershell
+   $migrationResult = Migrate-BitLockerKeys -DeviceId $deviceId -ValidateBackup $true
+   ```
+
+4. **Verify migration success**:
+   ```powershell
+   if ($migrationResult.Success) {
+       Write-Host "BitLocker keys successfully migrated to Azure AD"
+   } else {
+       Write-Error "BitLocker key migration failed"
+       foreach ($error in $migrationResult.Errors) {
+           Write-Error $error
+       }
+   }
+   ```
+
+## Error Handling
+
+The module includes comprehensive error handling with detailed logging:
+
+```powershell
+try {
+    $result = Migrate-BitLockerKeys -DeviceId $deviceId -ValidateBackup $true
+    if (-not $result.Success) {
+        throw "BitLocker key migration failed: $($result.Errors -join '; ')"
+    }
+} catch {
+    Write-Error "An error occurred during BitLocker key migration: $_"
+    Write-Log -Level "ERROR" -Message "BitLocker key migration failed: $_" -Source "GraphAPIIntegration"
+    # Implement fallback or recovery mechanism
+}
+```
+
+## Best Practices
+
+1. **Use application permissions with certificates** for non-interactive scenarios
+2. **Implement caching** to reduce API calls and improve performance
+3. **Include proper error handling** for all API operations
+4. **Validate successful operations** especially for critical functions like BitLocker key backup
+5. **Monitor API usage** to stay within service limits
+6. **Use managed identities** when running in Azure environments
+7. **Follow least privilege principle** when configuring application permissions
 
 ## Troubleshooting
 
-### Common Issues
+Common issues and their resolutions:
 
-1. **Authentication Failures**
-   - Verify client ID, client secret, and tenant ID
-   - Ensure the application has proper permissions
-   - Check network connectivity to Azure AD endpoints
+1. **Authentication failures**:
+   - Verify client ID, tenant ID, and client secret/certificate
+   - Check that the application has appropriate permissions
+   - Ensure the certificate is valid and accessible
 
-2. **Permission Errors**
-   - Verify the application has been granted admin consent
-   - Check that the required permissions are assigned
+2. **API permission issues**:
+   - Verify the application has been granted the required permissions
+   - Check for admin consent if required
+   - Review Azure AD application permission configuration
 
-3. **BitLocker Key Backup Failures**
-   - Ensure the device is Azure AD joined or hybrid joined
-   - Verify BitLocker is enabled and protection is on
-   - Check that recovery keys exist on the device
+3. **BitLocker key backup failures**:
+   - Ensure the device is properly registered in Azure AD
+   - Verify the user has appropriate permissions
+   - Check BitLocker status on the volume
 
-### Logging
+4. **Request throttling**:
+   - Implement exponential backoff in retry logic
+   - Reduce unnecessary API calls
+   - Use batch requests where possible
 
-The module uses the LoggingModule for detailed logging. To increase verbosity:
+5. **Network connectivity issues**:
+   - Verify connectivity to Graph API endpoints
+   - Check proxy settings if applicable
+   - Review firewall configurations
+
+## Module Dependencies
+
+- Microsoft.Graph.Intune
+- MSAL.PS
+- Microsoft.Graph.Authentication 
+- SecurityFoundation.psm1 (optional, for secure credential management)
+- SecureCredentialProvider.psm1 (optional, for credential retrieval)
+- LoggingModule.psm1 (for consistent logging)
+
+## Example - Full BitLocker Migration Script
 
 ```powershell
-Set-LogLevel -Level DEBUG
-```
+# Import required modules
+Import-Module "src\modules\GraphAPIIntegration.psm1"
+Import-Module "src\modules\LoggingModule.psm1"
+Import-Module "src\modules\SecureCredentialProvider.psm1"
 
-## References
+# Initialize modules
+Initialize-Logging -LogPath "C:\Temp\Logs\BitLockerMigration.log" -LogLevel "VERBOSE"
+Initialize-CredentialProvider -KeyVaultName "MigrationKeyVault"
 
-- [Microsoft Graph API Documentation](https://docs.microsoft.com/en-us/graph/overview)
-- [BitLocker Recovery Key API](https://docs.microsoft.com/en-us/graph/api/resources/bitlockerrecoverykey)
-- [Microsoft Authentication Library](https://docs.microsoft.com/en-us/azure/active-directory/develop/msal-overview) 
+# Get credentials
+$clientId = Get-SecureCredential -Name "GraphApiClientId" -AsPlainText
+$clientSecret = Get-SecureCredential -Name "GraphApiClientSecret"
+$tenantId = Get-SecureCredential -Name "AzureTenantId" -AsPlainText
+
+# Initialize Graph API
+Initialize-GraphApiIntegration -ClientId $clientId -TenantId $tenantId -ClientSecret $clientSecret
+
+# Connect to Graph API
+$token = Get-GraphApiAuthToken
+Connect-MicrosoftGraph -Token $token
+
+# Get device ID
+$deviceId = Get-AzureADDeviceId
+if (-not $deviceId) {
+    Write-Log -Level "ERROR" -Message "Device not registered in Azure AD" -Source "BitLockerMigration"
+    exit 1
+}
+
+# Migrate BitLocker keys
+$migrationParams = @{
+    DeviceId = $deviceId
+    VolumeTypes = @("OperatingSystem", "Fixed")
+    ValidateBackup = $true
+}
+
+$result = Migrate-BitLockerKeys @migrationParams
+
+# Generate report
+$report = @{
+    Timestamp = Get-Date
+    DeviceId = $deviceId
+    Success = $result.Success
+    KeysMigrated = $result.MigratedKeys.Count
+    Errors = $result.Errors
+}
+
+# Write results
+Write-Log -Level "INFO" -Message "BitLocker migration completed with status: $($result.Success)" -Source "BitLockerMigration"
+Write-Log -Level "INFO" -Message "Keys migrated: $($result.MigratedKeys.Count)" -Source "BitLockerMigration"
+
+if (-not $result.Success) {
+    foreach ($error in $result.Errors) {
+        Write-Log -Level "ERROR" -Message $error -Source "BitLockerMigration"
+    }
+}
+
+# Output report
+$report | ConvertTo-Json | Out-File "C:\Temp\Logs\BitLockerMigrationReport.json"
+``` 

@@ -484,9 +484,383 @@ Invoke-Command -Session $session -ScriptBlock {
 }
 ```
 
-## 9. Common Troubleshooting Scenarios
+## 9. End User Experience Management
 
-### 9.1 Failed Intune Enrollment
+### 9.1 Overview of User Experience
+
+The migration toolkit provides comprehensive tools to manage the end user experience during migration. These features aim to minimize disruption while keeping users informed of the migration progress. The key components include:
+
+- **User notifications**: Configurable multi-channel alerts before, during, and after migration
+- **Lock screen guidance**: Visual indicators and instructions on the device lock screen
+- **Progress indicators**: Real-time status of migration activities
+- **User feedback collection**: Mechanisms to gather user feedback about the migration
+- **Self-service options**: Limited troubleshooting capabilities for end users
+
+```powershell
+# Get current end user experience configuration
+Invoke-Command -Session $session -ScriptBlock {
+    Import-Module "C:\MigrationToolkit\src\modules\UserCommunicationFramework.psm1"
+    Get-NotificationConfig
+}
+```
+
+### 9.2 Configuring End User Notifications
+
+```powershell
+# Configure user notifications (as remote administrator)
+Invoke-Command -Session $session -ScriptBlock {
+    Import-Module "C:\MigrationToolkit\src\modules\UserCommunicationFramework.psm1"
+    
+    # Set notification configuration with company branding
+    $notificationParams = @{
+        CompanyName = "Contoso Ltd"
+        NotificationEmail = "migration-support@contoso.com"
+        SupportContact = "IT Help Desk (x1234)"
+        EnableEmailNotifications = $true
+        EnableToastNotifications = $true
+        EnableCalendarInvites = $true
+        NotificationSchedule = @{
+            PreMigration = 72  # Hours before migration
+            Reminder = 24      # Hours before migration
+            PostMigration = 2   # Hours after completion
+        }
+        BrandingLogoPath = "C:\MigrationToolkit\assets\company_logo.png"
+    }
+    
+    Set-NotificationConfig @notificationParams
+    
+    # Test notification delivery
+    Send-MigrationNotification -Stage "PreMigration" -TestMode
+}
+```
+
+### 9.3 Lock Screen Guidance Setup
+
+```powershell
+# Configure lock screen guidance for migration
+Invoke-Command -Session $session -ScriptBlock {
+    Import-Module "C:\MigrationToolkit\src\modules\LockScreenGuidance.psm1"
+    
+    # Initialize lock screen guidance with company branding
+    $lockScreenParams = @{
+        Enabled = $true
+        CompanyName = "Contoso Ltd"
+        PrimaryColor = "#0078D4"
+        SecondaryColor = "#FFFFFF"
+        LogoPath = "C:\MigrationToolkit\assets\company_logo.png"
+        BackupOriginalLockScreen = $true
+    }
+    
+    Initialize-LockScreenGuidance @lockScreenParams
+    
+    # Test lock screen update
+    Update-MigrationLockScreen -Stage "Preparing" -EstimatedMinutesRemaining 120 -TestMode
+}
+```
+
+### 9.4 End User Experience Walkthrough
+
+This section outlines the complete end user journey during the migration process:
+
+#### Stage 1: Pre-Migration Notification (3 Days Before)
+- User receives email notification about upcoming migration
+- Toast notification appears on device with migration date/time
+- Optional calendar invite is sent for the migration window
+- Email includes FAQs and preparation steps
+
+**Administrator View:**
+```powershell
+# Send pre-migration notifications
+Invoke-Command -Session $session -ScriptBlock {
+    Import-Module "C:\MigrationToolkit\src\modules\UserCommunicationFramework.psm1"
+    
+    $preNotifyParams = @{
+        UserEmail = "user@contoso.com"
+        MigrationDate = (Get-Date).AddDays(3)
+        MigrationWindow = "6:00 PM - 9:00 PM"
+        AddToCalendar = $true
+        IncludePreparationSteps = $true
+    }
+    
+    Send-MigrationNotification -Stage "PreMigration" @preNotifyParams
+}
+```
+
+#### Stage 2: Migration Start
+- User receives reminder notification
+- Device displays toast notification: "Migration starting soon"
+- If user is logged in, they receive option to postpone briefly (if allowed in policy)
+- Lock screen updates to indicate migration is starting
+
+**Administrator View:**
+```powershell
+# Update lock screen at migration start
+Invoke-Command -Session $session -ScriptBlock {
+    Import-Module "C:\MigrationToolkit\src\modules\LockScreenGuidance.psm1"
+    Import-Module "C:\MigrationToolkit\src\modules\UserCommunicationFramework.psm1"
+    
+    # Notify user of migration start
+    Send-MigrationNotification -Stage "MigrationStart"
+    
+    # Update lock screen
+    Update-MigrationLockScreen -Stage "Starting" -EstimatedMinutesRemaining 60
+    
+    # Check if user requested deferral
+    $userResponse = Get-MigrationFeedback -FeedbackType "DeferralRequest"
+    if ($userResponse.Requested) {
+        Write-Output "User requested deferral until: $($userResponse.DeferUntil)"
+    }
+}
+```
+
+#### Stage 3: Migration In Progress
+- Lock screen displays progress bar with estimated time remaining
+- Progress updates automatically as stages complete
+- Device may restart multiple times (user is warned)
+- All user notifications are suppressed to avoid interruption
+
+**Administrator View:**
+```powershell
+# Update migration progress on lock screen
+Invoke-Command -Session $session -ScriptBlock {
+    Import-Module "C:\MigrationToolkit\src\modules\LockScreenGuidance.psm1"
+    
+    # As each phase completes, update the progress
+    $migrationStages = @("Backup", "Preparation", "Uninstalling", "Installing", "Configuration")
+    $totalStages = $migrationStages.Count
+    
+    foreach ($index in 0..($totalStages-1)) {
+        $stage = $migrationStages[$index]
+        $percentComplete = [math]::Round((($index + 1) / $totalStages) * 100)
+        $remaining = 60 - (($index + 1) / $totalStages * 60)
+        
+        # Update lock screen with current stage and progress
+        Set-LockScreenProgress -Stage $stage -PercentComplete $percentComplete -EstimatedMinutesRemaining $remaining
+        
+        # Simulate time passing for this example
+        Start-Sleep -Seconds 2
+    }
+}
+```
+
+#### Stage 4: Migration Complete
+- Lock screen updates to show completion message
+- Restore original lock screen after user acknowledges
+- Toast notification appears with success message and new features
+- Email sent with post-migration information and resources
+
+**Administrator View:**
+```powershell
+# Complete migration and restore normal experience
+Invoke-Command -Session $session -ScriptBlock {
+    Import-Module "C:\MigrationToolkit\src\modules\LockScreenGuidance.psm1"
+    Import-Module "C:\MigrationToolkit\src\modules\UserCommunicationFramework.psm1"
+    
+    # Update lock screen with completion message
+    Update-MigrationLockScreen -Stage "Complete"
+    
+    # Wait for user acknowledgment (in production this would wait for actual interaction)
+    Start-Sleep -Seconds 5
+    
+    # Restore original lock screen
+    Restore-OriginalLockScreen
+    
+    # Send completion notification
+    Send-MigrationNotification -Stage "PostMigration" -IncludeNewFeaturesList $true
+}
+```
+
+#### Stage 5: Post-Migration Feedback
+- User receives feedback request via email and toast notification
+- Simple form to rate experience and provide comments
+- Option to report issues for IT follow-up
+
+**Administrator View:**
+```powershell
+# Request and collect user feedback
+Invoke-Command -Session $session -ScriptBlock {
+    Import-Module "C:\MigrationToolkit\src\modules\UserCommunicationFramework.psm1"
+    
+    # Request feedback after 1 day
+    Send-MigrationNotification -Stage "FeedbackRequest" -DelayHours 24
+    
+    # Check for received feedback (would normally be in central repository)
+    $feedback = Get-MigrationFeedback -FeedbackType "PostMigration"
+    if ($feedback) {
+        Write-Output "Received feedback from user. Satisfaction level: $($feedback.SatisfactionLevel)"
+        Write-Output "Comments: $($feedback.Comments)"
+        
+        # If issues reported, create ticket in service desk
+        if ($feedback.ReportedIssues) {
+            Write-Output "User reported issues: $($feedback.ReportedIssues)"
+            # Code to create service desk ticket would go here
+        }
+    }
+}
+```
+
+### 9.5 Customizing User Experience Templates
+
+The migration toolkit includes customizable templates for all user communications. These can be modified to match your organization's branding and communication style.
+
+```powershell
+# Customize email templates
+Invoke-Command -Session $session -ScriptBlock {
+    # Locate templates directory
+    $templatesPath = "C:\MigrationToolkit\templates"
+    
+    # Customize email templates
+    $preMigrationTemplate = Join-Path $templatesPath "email_pre_migration.html"
+    
+    # Make a backup of the original template
+    Copy-Item -Path $preMigrationTemplate -Destination "$preMigrationTemplate.bak"
+    
+    # Customize the template content
+    $templateContent = Get-Content -Path $preMigrationTemplate -Raw
+    $templateContent = $templateContent.Replace('{{DEFAULT_HEADING}}', 'Important: Your device is being upgraded')
+    $templateContent = $templateContent.Replace('{{DEFAULT_COMPANY_NAME}}', 'Contoso Ltd')
+    
+    # Save the customized template
+    Set-Content -Path $preMigrationTemplate -Value $templateContent
+    
+    # Register custom templates
+    Import-Module "C:\MigrationToolkit\src\modules\UserCommunicationFramework.psm1"
+    Register-CustomTemplates -TemplatePath $templatesPath
+}
+```
+
+### 9.6 Troubleshooting End User Experience Issues
+
+#### User Reports Not Receiving Notifications
+
+**Diagnostic Steps:**
+```powershell
+Invoke-Command -Session $session -ScriptBlock {
+    # Check notification configuration
+    Import-Module "C:\MigrationToolkit\src\modules\UserCommunicationFramework.psm1"
+    $config = Get-NotificationConfig
+    
+    if (-not $config.EnableToastNotifications -and -not $config.EnableEmailNotifications) {
+        Write-Output "All notifications are disabled in configuration"
+    }
+    
+    # Check notification logs
+    $notificationLogs = Get-Content "C:\MigrationToolkit\logs\notifications.log" -Tail 50
+    $failedNotifications = $notificationLogs | Select-String "Failed to send"
+    
+    if ($failedNotifications) {
+        Write-Output "Found failed notification attempts:"
+        $failedNotifications | ForEach-Object { Write-Output "  $_" }
+    }
+    
+    # Check email configuration
+    $emailSettings = Get-Content "C:\MigrationToolkit\config\email_settings.json" | ConvertFrom-Json
+    Write-Output "SMTP Server: $($emailSettings.SMTPServer)"
+    Write-Output "From Address: $($emailSettings.FromAddress)"
+    
+    # Test email sending
+    try {
+        Send-MailMessage -SmtpServer $emailSettings.SMTPServer -From $emailSettings.FromAddress -To "test@contoso.com" -Subject "Test Email" -Body "Test email from migration toolkit"
+        Write-Output "Test email sent successfully"
+    }
+    catch {
+        Write-Output "Failed to send test email: $_"
+    }
+}
+```
+
+#### Lock Screen Not Updating
+
+**Diagnostic Steps:**
+```powershell
+Invoke-Command -Session $session -ScriptBlock {
+    Import-Module "C:\MigrationToolkit\src\modules\LockScreenGuidance.psm1"
+    
+    # Check lock screen configuration
+    $lockScreenConfig = Get-LockScreenConfig
+    
+    if (-not $lockScreenConfig.Enabled) {
+        Write-Output "Lock screen guidance is disabled in configuration"
+    }
+    
+    # Check for permissions issues
+    $personalizationKey = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization"
+    if (Test-Path $personalizationKey) {
+        $lockScreenPolicy = Get-ItemProperty -Path $personalizationKey -Name "LockScreenImage" -ErrorAction SilentlyContinue
+        if ($lockScreenPolicy) {
+            Write-Output "Group Policy is controlling lock screen image: $($lockScreenPolicy.LockScreenImage)"
+        }
+    }
+    
+    # Test lock screen update
+    try {
+        $testResult = Test-LockScreenPermissions
+        if (-not $testResult.Success) {
+            Write-Output "Lock screen permission test failed: $($testResult.Error)"
+        } else {
+            Write-Output "Lock screen permissions OK"
+        }
+    }
+    catch {
+        Write-Output "Error testing lock screen permissions: $_"
+    }
+    
+    # Force refresh lock screen
+    try {
+        Update-MigrationLockScreen -Stage "Testing" -Force
+        Write-Output "Force update of lock screen attempted"
+    }
+    catch {
+        Write-Output "Failed to force update lock screen: $_"
+    }
+}
+```
+
+#### User Interface Showing Incorrect Information
+
+**Diagnostic Steps:**
+```powershell
+Invoke-Command -Session $session -ScriptBlock {
+    # Check status file for accuracy
+    $statusFile = "C:\MigrationToolkit\status\migrationStatus.json"
+    if (Test-Path $statusFile) {
+        $status = Get-Content $statusFile | ConvertFrom-Json
+        Write-Output "Current migration status: $($status.CurrentStage), Progress: $($status.PercentComplete)%"
+        
+        # Check if status is stale
+        $lastUpdateTime = [DateTime]$status.LastUpdated
+        $timeSinceUpdate = (Get-Date) - $lastUpdateTime
+        if ($timeSinceUpdate.TotalMinutes -gt 30) {
+            Write-Output "WARNING: Status information is stale (last updated $([int]$timeSinceUpdate.TotalMinutes) minutes ago)"
+        }
+    } else {
+        Write-Output "Migration status file not found"
+    }
+    
+    # Check template rendering errors
+    $templateLogs = Get-Content "C:\MigrationToolkit\logs\template_engine.log" -ErrorAction SilentlyContinue
+    if ($templateLogs) {
+        $renderErrors = $templateLogs | Select-String "Failed to render"
+        if ($renderErrors) {
+            Write-Output "Template rendering errors found:"
+            $renderErrors | ForEach-Object { Write-Output "  $_" }
+        }
+    }
+    
+    # Verify image assets exist
+    $requiredAssets = @("company_logo.png", "migration_icon.png", "success_icon.png")
+    foreach ($asset in $requiredAssets) {
+        $assetPath = "C:\MigrationToolkit\assets\$asset"
+        if (-not (Test-Path $assetPath)) {
+            Write-Output "Missing required asset: $asset"
+        }
+    }
+}
+```
+
+## 10. Common Troubleshooting Scenarios
+
+### 10.1 Failed Intune Enrollment
 
 **Symptoms:**
 - Device shows "Pending" in Intune console
@@ -508,7 +882,7 @@ Invoke-Command -Session $session -ScriptBlock {
 }
 ```
 
-### 9.2 Missing BitLocker Keys in Azure AD
+### 10.2 Missing BitLocker Keys in Azure AD
 
 **Symptoms:**
 - BitLocker keys not visible in Azure portal
@@ -532,7 +906,7 @@ Invoke-Command -Session $session -ScriptBlock {
 }
 ```
 
-### 9.3 Workspace ONE Uninstallation Failures
+### 10.3 Workspace ONE Uninstallation Failures
 
 **Symptoms:**
 - WS1 agent still running after migration
@@ -561,7 +935,7 @@ Invoke-Command -Session $session -ScriptBlock {
 }
 ```
 
-### 9.4 Permission and Elevation Issues
+### 10.4 Permission and Elevation Issues
 
 **Symptoms:**
 - Scripts fail with "Access Denied" errors
@@ -601,7 +975,7 @@ Invoke-Command -Session $session -ScriptBlock {
 }
 ```
 
-## 10. Remote Administration Contacts
+## 11. Remote Administration Contacts
 
 For emergency escalation, contact:
 
@@ -617,9 +991,9 @@ For emergency escalation, contact:
   - Email: security@example.com
   - Phone: +1-555-111-2222
 
-## 11. Appendices
+## 12. Appendices
 
-### 11.1 Migration Status Codes
+### 12.1 Migration Status Codes
 
 | Code | Description | Action Required |
 |------|-------------|----------------|
@@ -637,7 +1011,7 @@ For emergency escalation, contact:
 | R001 | Rollback initiated | None |
 | R002 | Rollback complete | Verify WS1 functionality |
 
-### 11.2 Required PowerShell Modules
+### 12.2 Required PowerShell Modules
 ```powershell
 # Required modules for remote administration
 $requiredModules = @(
@@ -658,7 +1032,7 @@ function Ensure-RequiredModules {
 }
 ```
 
-### 11.3 Log File Locations
+### 12.3 Log File Locations
 
 | Log Type | Location | Purpose |
 |----------|----------|---------|
@@ -668,7 +1042,7 @@ function Ensure-RequiredModules {
 | MDM Diagnostics | Event Viewer: Applications and Services Logs > Microsoft > Windows > DeviceManagement-Enterprise-Diagnostics-Provider | Intune enrollment issues |
 | BitLocker | Event Viewer: Applications and Services Logs > Microsoft > Windows > BitLocker-API | BitLocker operations |
 
-### 11.4 Setting Up Certificate-Based Authentication
+### 12.4 Setting Up Certificate-Based Authentication
 
 To set up certificate-based authentication for remote administration:
 
@@ -712,7 +1086,7 @@ New-AzADServicePrincipal -ApplicationId $app.AppId
 New-AzRoleAssignment -ApplicationId $app.AppId -RoleDefinitionName "Contributor" -ResourceName "MigrationKeyVault" -ResourceType "Microsoft.KeyVault/vaults" -ResourceGroupName "MigrationResourceGroup"
 ```
 
-### 11.5 Local Administrator Provisioning
+### 12.5 Local Administrator Provisioning
 
 To ensure consistent local administrator access across all devices:
 

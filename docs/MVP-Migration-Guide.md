@@ -15,6 +15,9 @@ The MVP toolkit includes the following essential components:
 - **RollbackMechanism.psm1**: Simple rollback capability for failed migrations
 - **UserCommunicationFramework.psm1**: User notifications and guidance throughout migration
 - **AuthenticationTransitionManager.psm1**: Manages identity provider transitions and credential providers
+- **SecurityFoundation.psm1**: Manages security aspects including certificates and encryption
+- **SecureCredentialProvider.psm1**: Unified interface for secure credential management
+- **GraphAPIIntegration.psm1**: Integration with Microsoft Graph API for Azure/Intune operations
 
 ### Scripts
 
@@ -22,6 +25,7 @@ The MVP toolkit includes the following essential components:
 - **Test-WS1Environment.ps1**: Validates prerequisites for migration
 - **Test-MigratedDevice.ps1**: Verifies successful migration
 - **TestScripts.ps1**: Validates PowerShell scripts for quality and functionality
+- **Test-KeyVaultIntegration.ps1**: Validates Azure Key Vault functionality
 
 ### UI Components
 
@@ -50,16 +54,26 @@ Edit the `config/WS1Config.json` file to set your environment-specific parameter
 
 ### Secure Credential Handling
 
-The MVP toolkit requires credentials for both Workspace ONE and Azure/Intune. To maintain security:
+The MVP toolkit now includes comprehensive credential management through the SecureCredentialProvider module with optional Azure Key Vault integration:
 
-1. **Never store credentials in the repository**: Use the template configuration files with placeholders
-2. **Use secure storage options**: 
-   - Environment variables
-   - Azure Key Vault
-   - Windows Credential Manager
-3. **Follow security best practices**: Principle of least privilege, credential rotation, etc.
+1. **Multiple storage options**:
+   - Azure Key Vault (recommended for production)
+   - Encrypted local files using the Windows Data Protection API
+   - Environment variables (for development/testing only)
+   
+2. **Implementation options**:
+   ```powershell
+   # Initialize with Azure Key Vault
+   Initialize-CredentialProvider -KeyVaultName "MyMigrationKeyVault" -UseManagedIdentity $true
+   
+   # Or initialize with local secure storage
+   Initialize-CredentialProvider -LocalStoragePath "C:\MigrationData\Credentials"
+   ```
 
-For comprehensive guidance on credential management, refer to the [Secure Credential Handling Documentation](Secure-Credential-Handling.md).
+For comprehensive guidance on credential management, refer to:
+- [Secure Credential Provider Documentation](SecureCredentialProvider.md)
+- [Key Vault Integration Guide](KeyVaultIntegration.md)
+- [Security Foundation Documentation](SecurityFoundation.md)
 
 ## Migration Process
 
@@ -68,8 +82,9 @@ The MVP toolkit implements a simplified migration workflow:
 1. **Preparation**: Run `Test-WS1Environment.ps1` to check prerequisites
 2. **Validation**: Verify system requirements and connectivity
 3. **Authentication Transition**: Configure credential providers for seamless identity transition
-4. **Migration**: Execute the migration process with `Invoke-WorkspaceOneSetup.ps1`
-5. **Verification**: Validate the migration with `Test-MigratedDevice.ps1`
+4. **Security Setup**: Initialize security components using `SecurityFoundation.psm1`
+5. **Migration**: Execute the migration process with `Invoke-WorkspaceOneSetup.ps1`
+6. **Verification**: Validate the migration with `Test-MigratedDevice.ps1`
 
 ## User Communication
 
@@ -91,6 +106,34 @@ The Authentication Transition Manager handles identity provider transitions duri
 3. **Post-Migration**: Verifies authentication and optionally disables legacy methods
 
 For more details, refer to the [Authentication Transition Manager Documentation](AuthenticationTransitionManager.md).
+
+## Security Foundation
+
+The Security Foundation module provides essential security services:
+
+1. **Certificate Management**: Generation and validation of certificates for encryption
+2. **Key Vault Integration**: Secure storage of sensitive information in Azure Key Vault
+3. **Encryption Services**: Protection of configuration data and credentials
+4. **Secure Storage**: Safe handling of migration-related sensitive information
+
+To initialize the security infrastructure:
+
+```powershell
+Import-Module "src\modules\SecurityFoundation.psm1"
+Initialize-SecurityFoundation -UseKeyVault $true -KeyVaultName "MyMigrationVault"
+```
+
+For more information, see the [Security Foundation Documentation](SecurityFoundation.md).
+
+## GraphAPI Integration
+
+The GraphAPI Integration module facilitates interaction with Microsoft Graph API:
+
+1. **Azure/Intune Management**: Device and policy management via Graph API
+2. **BitLocker Key Migration**: Secure transfer of BitLocker keys to Azure AD
+3. **Authentication**: Secure token handling for Graph API access
+
+Review the [GraphAPI Integration Documentation](GraphAPIIntegration.md) for implementation details.
 
 ## Validation
 
@@ -117,7 +160,6 @@ The MVP toolkit has some limitations compared to the full enterprise version:
 - Simplified user experience without portal access
 - No automation for large-scale deployments
 - Limited integrations with external systems
-- Early-stage implementation of Authentication Transition Management
 
 ## Future Enhancements
 
@@ -128,7 +170,6 @@ The MVP can be extended with additional features as needs grow:
 - Scaling capabilities for larger deployments
 - Integration with service management platforms
 - Multi-platform support
-- Complete credential provider manipulation library 
 - Expanded fallback authentication methods
 
 ## Troubleshooting
@@ -154,5 +195,11 @@ The MVP can be extended with additional features as needs grow:
 5. **Migration failures**:
    - Review logs in the `C:\Temp\Logs` directory
    - Run `Test-MigratedDevice.ps1` to identify specific issues
+
+6. **Key Vault access issues**:
+   - Verify network connectivity to Azure
+   - Check permissions and service principal configuration
+   - Review Azure Key Vault access policies
+   - Use `Test-KeyVaultIntegration.ps1` to diagnose issues
 
 For detailed troubleshooting, check the logs generated during each step of the process. 

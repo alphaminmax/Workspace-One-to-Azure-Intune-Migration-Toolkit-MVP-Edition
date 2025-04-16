@@ -1,23 +1,36 @@
 {
   "project": {
     "name": "Workspace ONE to Azure/Intune Migration Toolkit",
-    "version": "0.5.0",
-    "description": "Toolkit for migrating devices from VMware Workspace ONE to Microsoft Azure/Intune",
+    "version": "0.7.0",
+    "description": "Comprehensive toolkit for migrating from VMware Workspace ONE UEM to Microsoft Intune",
     "status": "In Development - MVP",
-    "lastUpdated": "2023-11-30"
+    "lastUpdated": "2024-06-20"
   },
-  "modules": {
+  "progress": {
+    "mvp": {
+      "totalComponents": 14,
+      "implementedComponents": 11,
+      "partialComponents": 3,
+      "percentComplete": 89
+    },
+    "extended": {
+      "totalComponents": 15,
+      "implementedComponents": 11,
+      "partialComponents": 3,
+      "percentComplete": 83
+    }
+  },
+  "components": {
     "LoggingModule": {
       "path": "src/modules/LoggingModule.psm1",
       "status": "Implemented",
       "inMVP": true,
-      "description": "Centralized logging functionality for the entire toolkit",
+      "description": "Comprehensive logging for tracking migration progress and errors",
       "features": [
-        {"name": "File Logging", "status": "Implemented"},
-        {"name": "Console Logging", "status": "Implemented"},
-        {"name": "Event Log Integration", "status": "Implemented"},
-        {"name": "Log Rotation", "status": "Implemented"},
-        {"name": "Verbosity Levels", "status": "Implemented"}
+        {"name": "Console logging", "status": "Implemented"},
+        {"name": "File logging", "status": "Implemented"},
+        {"name": "Event logging", "status": "Implemented"},
+        {"name": "Log rotation", "status": "Implemented"}
       ],
       "dependencies": []
     },
@@ -25,27 +38,30 @@
       "path": "src/modules/SecurityFoundation.psm1",
       "status": "Implemented",
       "inMVP": true,
-      "description": "Security foundation for credentials and certificate management",
+      "description": "Security foundation for the migration process",
       "features": [
-        {"name": "Credential Management", "status": "Implemented"},
-        {"name": "Certificate Management", "status": "Implemented"},
-        {"name": "Data Encryption", "status": "Implemented"},
-        {"name": "Key Vault Integration", "status": "Implemented"}
+        {"name": "Certificate management", "status": "Implemented"},
+        {"name": "Key Vault integration", "status": "Implemented"},
+        {"name": "Data protection", "status": "Implemented"}
       ],
-      "dependencies": ["LoggingModule", "SecureCredentialProvider"]
+      "dependencies": ["SecureCredentialProvider"]
     },
     "SecureCredentialProvider": {
       "path": "src/modules/SecureCredentialProvider.psm1",
       "status": "Implemented",
       "inMVP": true,
-      "description": "Secure credential management with Azure Key Vault integration",
+      "description": "Secure credential management for service connections",
       "features": [
-        {"name": "Azure Key Vault Integration", "status": "Implemented"},
-        {"name": "Environment Variables Support", "status": "Implemented"},
-        {"name": "Standard Admin Account", "status": "Implemented"},
-        {"name": "Credential Fallback Mechanisms", "status": "Implemented"}
+        {"name": "Secure credential storage", "status": "Implemented"},
+        {"name": "Key Vault integration", "status": "Implemented"},
+        {"name": "Credential rotation", "status": "Implemented"}
       ],
       "dependencies": ["LoggingModule"]
+    },
+    "DeviceInventory": {
+      "status": "Implemented",
+      "description": "Inventory collection for migration planning",
+      "features": ["Hardware inventory", "Software inventory", "Configuration assessment"]
     },
     "UserCommunicationFramework": {
       "path": "src/modules/UserCommunicationFramework.psm1",
@@ -53,25 +69,96 @@
       "inMVP": true,
       "description": "Framework for communicating with users during migration",
       "features": [
-        {"name": "Multi-channel Notifications", "status": "Implemented"},
-        {"name": "Notification Templates", "status": "Implemented"},
-        {"name": "Progress Display", "status": "Implemented"},
-        {"name": "User Guides", "status": "Implemented"},
-        {"name": "Feedback Collection", "status": "Implemented"}
+        {"name": "Email notifications", "status": "Implemented"},
+        {"name": "Toast notifications", "status": "Implemented"},
+        {"name": "Migration status portal", "status": "Implemented"}
       ],
       "dependencies": ["LoggingModule"]
+    },
+    "WorkspaceOneIntegration": {
+      "path": "src/modules/WorkspaceOneIntegration.psm1",
+      "status": "Partial",
+      "inMVP": true,
+      "description": "Integration with Workspace ONE UEM APIs",
+      "features": [
+        {"name": "Device inventory extraction", "status": "Implemented"},
+        {"name": "Profile export", "status": "Implemented"},
+        {"name": "Partial: Application management", "status": "Partial"}
+      ],
+      "dependencies": ["LoggingModule", "SecurityFoundation"]
+    },
+    "IntuneIntegration": {
+      "path": "src/modules/IntuneIntegration.psm1",
+      "status": "Partial",
+      "inMVP": true,
+      "description": "Integration with Microsoft Intune Graph APIs",
+      "features": [
+        {"name": "Device enrollment", "status": "Implemented"},
+        {"name": "Profile import", "status": "Implemented"},
+        {"name": "Partial: Application deployment", "status": "Partial"}
+      ],
+      "dependencies": ["LoggingModule", "SecurityFoundation", "GraphAPIIntegration"]
+    },
+    "ConfigurationProfileConverter": {
+      "status": "Implemented",
+      "description": "Conversion of Workspace ONE profiles to Intune format",
+      "features": ["Windows profile conversion", "iOS/iPadOS profile conversion", "Android profile conversion"]
+    },
+    "BitLockerMigrationTool": {
+      "status": "Implemented",
+      "description": "Migration of BitLocker recovery keys to Azure AD",
+      "features": ["Key extraction", "Azure AD backup", "Recovery validation"]
+    },
+    "EnrollmentPreparationTool": {
+      "status": "Implemented",
+      "description": "Prepare devices for enrollment in Intune",
+      "features": ["MDM unenrollment", "Cleanup", "Pre-enrollment checks"]
+    },
+    "MigrationVerification": {
+      "path": "src/modules/MigrationVerification.psm1",
+      "status": "Implemented",
+      "inMVP": true,
+      "description": "Verification of successful migration",
+      "features": [
+        {"name": "Enrollment verification", "status": "Implemented"},
+        {"name": "Profile application checks", "status": "Implemented"},
+        {"name": "Compliance status", "status": "Implemented"}
+      ],
+      "dependencies": ["LoggingModule", "IntuneIntegration"]
+    },
+    "MigrationEngine": {
+      "path": "src/modules/MigrationEngine.psm1",
+      "status": "Partial",
+      "inMVP": true,
+      "description": "Core engine for migration orchestration",
+      "features": [
+        {"name": "Step sequencing", "status": "Implemented"},
+        {"name": "Error handling", "status": "Implemented"},
+        {"name": "Partial: Rollback mechanisms", "status": "Partial"}
+      ],
+      "dependencies": ["LoggingModule", "ConfigurationManager", "WorkspaceOneIntegration", "IntuneIntegration"]
+    },
+    "GraphAPIIntegration": {
+      "path": "src/modules/GraphAPIIntegration.psm1",
+      "status": "Implemented",
+      "inMVP": true,
+      "description": "Integration with Microsoft Graph API",
+      "features": [
+        {"name": "Authentication", "status": "Implemented"},
+        {"name": "Device management", "status": "Implemented"},
+        {"name": "User management", "status": "Implemented"}
+      ],
+      "dependencies": ["LoggingModule", "SecurityFoundation", "SecureCredentialProvider"]
     },
     "LockScreenGuidance": {
       "path": "src/modules/LockScreenGuidance.psm1",
       "status": "Implemented",
       "inMVP": true,
-      "description": "Lock screen customization to guide users through migration",
+      "description": "User guidance via the Windows lock screen",
       "features": [
-        {"name": "Stage-aware Messaging", "status": "Implemented"},
-        {"name": "Corporate Branding", "status": "Implemented"},
-        {"name": "Progress Visualization", "status": "Implemented"},
-        {"name": "Contact Collection", "status": "Implemented"},
-        {"name": "Error Display", "status": "Implemented"}
+        {"name": "Custom lock screen images", "status": "Implemented"},
+        {"name": "Guidance text", "status": "Implemented"},
+        {"name": "Progress indicators", "status": "Implemented"}
       ],
       "dependencies": ["LoggingModule", "UserCommunicationFramework"]
     },
@@ -87,172 +174,109 @@
         {"name": "Default Configuration", "status": "Implemented"}
       ],
       "dependencies": ["LoggingModule"]
-    },
-    "WorkspaceOneIntegration": {
-      "path": "src/modules/WorkspaceOneIntegration.psm1",
-      "status": "Partial",
-      "inMVP": true,
-      "description": "Integration with Workspace ONE APIs and components",
-      "features": [
-        {"name": "Device Inventory", "status": "Implemented"},
-        {"name": "Profile Management", "status": "Implemented"},
-        {"name": "Application Management", "status": "Partial"},
-        {"name": "Command Execution", "status": "Implemented"}
-      ],
-      "dependencies": ["LoggingModule", "SecurityFoundation"]
-    },
-    "IntuneIntegration": {
-      "path": "src/modules/IntuneIntegration.psm1",
-      "status": "Partial",
-      "inMVP": true,
-      "description": "Integration with Microsoft Intune APIs and components",
-      "features": [
-        {"name": "Device Enrollment", "status": "Implemented"},
-        {"name": "Policy Application", "status": "Implemented"},
-        {"name": "Application Deployment", "status": "Partial"},
-        {"name": "Compliance Verification", "status": "Implemented"}
-      ],
-      "dependencies": ["LoggingModule", "SecurityFoundation"]
-    },
-    "MigrationEngine": {
-      "path": "src/modules/MigrationEngine.psm1",
-      "status": "Partial",
-      "inMVP": true,
-      "description": "Core migration logic and orchestration",
-      "features": [
-        {"name": "Pre-migration Assessment", "status": "Implemented"},
-        {"name": "Stage Execution", "status": "Implemented"},
-        {"name": "Error Handling", "status": "Implemented"},
-        {"name": "Rollback Mechanisms", "status": "Partial"}
-      ],
-      "dependencies": ["LoggingModule", "ConfigurationManager", "WorkspaceOneIntegration", "IntuneIntegration"]
-    },
-    "BitLockerManager": {
-      "path": "src/modules/BitLockerManager.psm1",
-      "status": "Implemented",
-      "inMVP": true,
-      "description": "BitLocker key management and migration",
-      "features": [
-        {"name": "Recovery Key Backup", "status": "Implemented"},
-        {"name": "Azure Key Vault Integration", "status": "Implemented"},
-        {"name": "Encryption Status Verification", "status": "Implemented"}
-      ],
-      "dependencies": ["LoggingModule", "SecurityFoundation"]
-    },
-    "MigrationVerification": {
-      "path": "src/modules/MigrationVerification.psm1",
-      "status": "Implemented",
-      "inMVP": true,
-      "description": "Post-migration verification and validation",
-      "features": [
-        {"name": "Device Health Check", "status": "Implemented"},
-        {"name": "Policy Verification", "status": "Implemented"},
-        {"name": "Application Verification", "status": "Implemented"},
-        {"name": "Connectivity Testing", "status": "Implemented"}
-      ],
-      "dependencies": ["LoggingModule", "IntuneIntegration"]
-    },
-    "RollbackMechanism": {
-      "path": "src/modules/RollbackMechanism.psm1",
-      "status": "Implemented",
-      "inMVP": true,
-      "description": "Rollback capability if migration fails",
-      "features": [
-        {"name": "Configuration Backup", "status": "Implemented"},
-        {"name": "Restore Process", "status": "Implemented"},
-        {"name": "Validation", "status": "Implemented"}
-      ],
-      "dependencies": ["LoggingModule", "WorkspaceOneIntegration"]
-    },
-    "WorkspaceOneWizard": {
-      "path": "src/modules/WorkspaceOneWizard.psm1",
-      "status": "Planned",
-      "inMVP": false,
-      "description": "GUI for the migration process",
-      "features": [
-        {"name": "User Interface", "status": "Planned"},
-        {"name": "Progress Visualization", "status": "Planned"},
-        {"name": "Configuration Options", "status": "Planned"}
-      ],
-      "dependencies": ["LoggingModule", "ConfigurationManager", "MigrationEngine"]
-    },
-    "GraphAPIIntegration": {
-      "path": "src/modules/GraphAPIIntegration.psm1",
-      "status": "Partial",
-      "inMVP": false,
-      "description": "Integration with Microsoft Graph API",
-      "features": [
-        {"name": "Authentication", "status": "Implemented"},
-        {"name": "Device Management", "status": "Partial"},
-        {"name": "User Management", "status": "Planned"}
-      ],
-      "dependencies": ["LoggingModule", "SecurityFoundation"]
     }
   },
   "scripts": {
-    "Test-WS1Environment": {
-      "path": "src/scripts/Test-WS1Environment.ps1",
+    "Start-Migration.ps1": {
+      "path": "src/scripts/Start-Migration.ps1",
       "status": "Implemented",
       "inMVP": true,
-      "description": "Prerequisite validation script",
-      "dependencies": ["LoggingModule", "ConfigurationManager"]
-    },
-    "Invoke-WorkspaceOneSetup": {
-      "path": "src/scripts/Invoke-WorkspaceOneSetup.ps1",
-      "status": "Implemented",
-      "inMVP": true,
-      "description": "Main entry point for the migration process",
+      "description": "Main migration script",
       "dependencies": ["MigrationEngine", "LoggingModule", "ConfigurationManager"]
     },
-    "Test-MigratedDevice": {
-      "path": "src/scripts/Test-MigratedDevice.ps1",
+    "Get-MigrationReport.ps1": {
+      "path": "src/scripts/Get-MigrationReport.ps1",
       "status": "Implemented",
       "inMVP": true,
-      "description": "Validates migration success",
+      "description": "Generate migration status reports",
       "dependencies": ["MigrationVerification", "LoggingModule"]
     },
-    "Remove-WS1Components": {
-      "path": "src/scripts/Remove-WS1Components.ps1",
+    "Test-Prerequisites.ps1": {
+      "path": "src/scripts/Test-Prerequisites.ps1",
       "status": "Implemented",
       "inMVP": true,
-      "description": "Cleanup after migration",
-      "dependencies": ["WorkspaceOneIntegration", "LoggingModule"]
+      "description": "Test if prerequisites are met for migration",
+      "dependencies": ["LoggingModule", "ConfigurationManager"]
+    },
+    "Prepare-DeviceForMigration.ps1": {
+      "path": "src/scripts/Prepare-DeviceForMigration.ps1",
+      "status": "Implemented",
+      "inMVP": true,
+      "description": "Prepare a device for migration",
+      "dependencies": ["LoggingModule", "ConfigurationManager"]
+    },
+    "Test-KeyVaultIntegration.ps1": {
+      "path": "src/scripts/Test-KeyVaultIntegration.ps1",
+      "status": "Implemented",
+      "inMVP": true,
+      "description": "Tests Azure Key Vault integration with security modules",
+      "dependencies": ["SecurityFoundation", "SecureCredentialProvider", "LoggingModule"]
     }
   },
-  "docs": {
-    "UserCommunicationFramework": {
-      "path": "docs/UserCommunicationFramework.md",
-      "status": "Implemented",
-      "inMVP": true
-    },
-    "MVP-Migration-Guide": {
-      "path": "docs/MVP-Migration-Guide.md",
-      "status": "Implemented",
-      "inMVP": true
-    },
-    "Security-Implementation": {
-      "path": "docs/Security-Implementation.md",
-      "status": "Planned",
-      "inMVP": false
-    },
-    "GraphAPI-Integration": {
-      "path": "docs/GraphAPI-Integration.md",
-      "status": "Planned",
-      "inMVP": false
+  "documentation": {
+    "files": {
+      "README.md": {
+        "description": "Main documentation file",
+        "status": "Current"
+      },
+      "SETUP.md": {
+        "description": "Setup instructions",
+        "status": "Current"
+      },
+      "MIGRATION-PROCESS.md": {
+        "description": "Detailed migration process documentation",
+        "status": "Current"
+      },
+      "MVP-Migration-Guide.md": {
+        "description": "Guide for using the MVP toolkit",
+        "status": "Current"
+      },
+      "TROUBLESHOOTING.md": {
+        "description": "Troubleshooting guide",
+        "status": "Current"
+      },
+      "UserCommunicationFramework.md": {
+        "description": "Documentation for User Communication Framework",
+        "status": "Current"
+      },
+      "KeyVault-Integration.md": {
+        "description": "Documentation for Azure Key Vault integration",
+        "status": "Planned"
+      },
+      "Secure-Credential-Handling.md": {
+        "description": "Best practices for credential handling",
+        "status": "Planned"
+      }
     }
   },
-  "mvpProgress": {
-    "totalComponents": 14,
-    "implemented": 11,
-    "partial": 3,
-    "planned": 0,
-    "percentComplete": 89
-  },
-  "extendedProgress": {
-    "totalComponents": 16,
-    "implemented": 11,
-    "partial": 3,
-    "planned": 2,
-    "percentComplete": 78
+  "tests": {
+    "moduleTests": {
+      "Test-LoggingModule.ps1": {
+        "status": "Implemented"
+      },
+      "Test-SecurityFoundation.ps1": {
+        "status": "Implemented"
+      },
+      "Test-ConfigurationProfileConverter.ps1": {
+        "status": "Implemented"
+      },
+      "Test-MigrationEngine.ps1": {
+        "status": "Partial"
+      },
+      "Test-SecureCredentialProvider.ps1": {
+        "status": "Implemented"
+      }
+    },
+    "integrationTests": {
+      "Test-E2EMigration.ps1": {
+        "status": "Partial"
+      },
+      "Test-WorkspaceOneConnectivity.ps1": {
+        "status": "Implemented"
+      },
+      "Test-IntuneConnectivity.ps1": {
+        "status": "Implemented"
+      }
+    }
   }
 } 
