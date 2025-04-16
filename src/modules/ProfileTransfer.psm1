@@ -624,8 +624,576 @@ function Restore-UserProfile {
     }
 }
 
+# Additional helper functions for enhanced ownership transfer
+
+<#
+.SYNOPSIS
+    Recursively processes ACLs for a user profile folder and its contents.
+.DESCRIPTION
+    Sets ownership and permissions recursively for a profile folder structure,
+    handling special cases and locked files with proper error handling.
+.PARAMETER FolderPath
+    The root folder path to process.
+.PARAMETER TargetSID
+    The SID of the target user who should own the files.
+.PARAMETER PreserveExistingPermissions
+    Whether to preserve existing permissions or replace them entirely.
+.EXAMPLE
+    Set-ProfileFolderAcl -FolderPath "C:\Users\john.doe" -TargetSID "S-1-5-21-..."
+#>
+function Set-ProfileFolderAcl {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FolderPath,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$TargetSID,
+        
+        [Parameter()]
+        [switch]$PreserveExistingPermissions
+    )
+    
+    Write-LogMessage -Message "Setting ACLs for folder: $FolderPath" -Level INFO
+    
+    try {
+        # Get security principal for target user
+        $targetAccount = New-Object System.Security.Principal.SecurityIdentifier($TargetSID)
+        $targetNTAccount = $targetAccount.Translate([System.Security.Principal.NTAccount])
+        
+        # Get current ACL
+        $acl = Get-Acl -Path $FolderPath -ErrorAction Stop
+        
+        # Set owner
+        $acl.SetOwner($targetAccount)
+        
+        # Set permissions
+        if (-not $PreserveExistingPermissions) {
+            # Create full control access rule
+            $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+                $targetAccount,
+                [System.Security.AccessControl.FileSystemRights]::FullControl,
+                [System.Security.AccessControl.InheritanceFlags]::ContainerInherit -bor [System.Security.AccessControl.InheritanceFlags]::ObjectInherit,
+                [System.Security.AccessControl.PropagationFlags]::None,
+                [System.Security.AccessControl.AccessControlType]::Allow
+            )
+            
+            # Add rule to ACL
+            $acl.AddAccessRule($accessRule)
+        }
+        
+        # Apply ACL
+        Set-Acl -Path $FolderPath -AclObject $acl -ErrorAction Stop
+        
+        # Process subfolders and files
+        $items = Get-ChildItem -Path $FolderPath -Force -ErrorAction SilentlyContinue
+        
+        foreach ($item in $items) {
+            if ($item.PSIsContainer) {
+                # Recursively process subdirectories
+                Set-ProfileFolderAcl -FolderPath $item.FullName -TargetSID $TargetSID -PreserveExistingPermissions:$PreserveExistingPermissions
+            } else {
+                # Process files
+                try {
+                    $fileAcl = Get-Acl -Path $item.FullName -ErrorAction Stop
+                    $fileAcl.SetOwner($targetAccount)
+                    
+                    if (-not $PreserveExistingPermissions) {
+                        $fileAccessRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+                            $targetAccount,
+                            [System.Security.AccessControl.FileSystemRights]::FullControl,
+                            [System.Security.AccessControl.InheritanceFlags]::None,
+                            [System.Security.AccessControl.PropagationFlags]::None,
+                            [System.Security.AccessControl.AccessControlType]::Allow
+                        )
+                        
+                        $fileAcl.AddAccessRule($fileAccessRule)
+                    }
+                    
+                    Set-Acl -Path $item.FullName -AclObject $fileAcl -ErrorAction Stop
+                } catch {
+                    # Log but continue processing other files
+                    Write-LogMessage -Message "Failed to set ACL for file: $($item.FullName). Error: $_" -Level WARNING
+                }
+            }
+        }
+        
+        return $true
+    } catch {
+        Write-LogMessage -Message "Failed to set ACLs for folder: $FolderPath. Error: $_" -Level ERROR
+        return $false
+    }
+}
+
+<#
+.SYNOPSIS
+    Handles registry hive ownership transitions.
+.DESCRIPTION
+    Transfers ownership of user registry hives between accounts,
+    handling locked keys and special registry permissions.
+.PARAMETER SourceSID
+    The SID of the source user.
+.PARAMETER TargetSID
+    The SID of the target user.
+.EXAMPLE
+    Transfer-RegistryHiveOwnership -SourceSID "S-1-5-21-..." -TargetSID "S-1-5-21-..."
+#>
+function Transfer-RegistryHiveOwnership {
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SourceSID,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$TargetSID
+    )
+    
+    Write-LogMessage -Message "Transferring registry hive ownership from $SourceSID to $TargetSID" -Level INFO
+    
+    try {
+        # Get source and target profile paths
+        $sourceProfilePath = Get-UserProfilePath -SID $SourceSID
+        $targetProfilePath = Get-UserProfilePath -SID $TargetSID
+        
+        if (-not $sourceProfilePath -or -not $targetProfilePath) {
+            Write-LogMessage -Message "Source or target profile path not found" -Level ERROR
+            return $false
+        }
+        
+        # Get source and target NT accounts
+        $sourceAccount = New-Object System.Security.Principal.SecurityIdentifier($SourceSID)
+        $targetAccount = New-Object System.Security.Principal.SecurityIdentifier($TargetSID)
+        
+        $sourceNTAccount = $sourceAccount.Translate([System.Security.Principal.NTAccount])
+        $targetNTAccount = $targetAccount.Translate([System.Security.Principal.NTAccount])
+        
+        # Get registry hive paths
+        $sourceHivePath = Join-Path -Path $sourceProfilePath -ChildPath "NTUSER.DAT"
+        $targetHivePath = Join-Path -Path $targetProfilePath -ChildPath "NTUSER.DAT"
+        
+        if (-not (Test-Path -Path $sourceHivePath)) {
+            Write-LogMessage -Message "Source registry hive not found at: $sourceHivePath" -Level ERROR
+            return $false
+        }
+        
+        # Prepare for registry operations
+        $tempSourceHive = "HKLM\TEMP_SOURCE_TRANSFER_HIVE"
+        $tempTargetHive = "HKLM\TEMP_TARGET_TRANSFER_HIVE"
+        
+        # Load hives if they're not already loaded
+        try {
+            # Check if user is logged in (hive might be loaded)
+            $userProfile = Get-WmiObject -Class Win32_UserProfile -Filter "SID='$SourceSID'"
+            $isLoaded = $userProfile -and $userProfile.Loaded
+            
+            if (-not $isLoaded) {
+                # Load source hive
+                $result = Start-Process -FilePath "reg.exe" -ArgumentList "load `"$tempSourceHive`" `"$sourceHivePath`"" -NoNewWindow -Wait -PassThru
+                if ($result.ExitCode -ne 0) {
+                    Write-LogMessage -Message "Failed to load source hive. Exit code: $($result.ExitCode)" -Level ERROR
+                    return $false
+                }
+                
+                # Use subinacl to set ownership (more powerful than PowerShell for registry)
+                $result = Start-Process -FilePath "subinacl.exe" -ArgumentList "/subkeyreg $tempSourceHive /setowner=$($targetNTAccount.Value)" -NoNewWindow -Wait -PassThru
+                if ($result.ExitCode -ne 0) {
+                    Write-LogMessage -Message "Failed to set registry ownership. Exit code: $($result.ExitCode)" -Level ERROR
+                    
+                    # Unload hive
+                    Start-Process -FilePath "reg.exe" -ArgumentList "unload `"$tempSourceHive`"" -NoNewWindow -Wait
+                    return $false
+                }
+                
+                # Unload modified hive
+                Start-Process -FilePath "reg.exe" -ArgumentList "unload `"$tempSourceHive`"" -NoNewWindow -Wait
+            } else {
+                Write-LogMessage -Message "Source user is logged in, using registry permissions tool" -Level WARNING
+                
+                # Use SetACL tool for live registry hives
+                $regPath = "HKU\$SourceSID"
+                $result = Start-Process -FilePath "SetACL.exe" -ArgumentList "-on `"$regPath`" -ot reg -actn setowner -ownr `"n:$($targetNTAccount.Value)`"" -NoNewWindow -Wait -PassThru
+                if ($result.ExitCode -ne 0) {
+                    Write-LogMessage -Message "Failed to set live registry ownership. Exit code: $($result.ExitCode)" -Level ERROR
+                    return $false
+                }
+            }
+            
+            Write-LogMessage -Message "Registry hive ownership transferred successfully" -Level INFO
+            return $true
+        } finally {
+            # Ensure hives are unloaded
+            try {
+                Start-Process -FilePath "reg.exe" -ArgumentList "unload `"$tempSourceHive`"" -NoNewWindow -Wait -ErrorAction SilentlyContinue
+                Start-Process -FilePath "reg.exe" -ArgumentList "unload `"$tempTargetHive`"" -NoNewWindow -Wait -ErrorAction SilentlyContinue
+            } catch {
+                # Ignore errors during cleanup
+            }
+        }
+    } catch {
+        Write-LogMessage -Message "Error during registry hive ownership transfer: $_" -Level ERROR
+        return $false
+    }
+}
+
+<#
+.SYNOPSIS
+    Verifies successful ownership transfer.
+.DESCRIPTION
+    Verifies that profile ownership and permissions have been successfully transferred.
+.PARAMETER ProfilePath
+    The path to the profile to verify.
+.PARAMETER TargetSID
+    The SID that should now own the profile.
+.EXAMPLE
+    Test-OwnershipTransfer -ProfilePath "C:\Users\john.doe" -TargetSID "S-1-5-21-..."
+#>
+function Test-OwnershipTransfer {
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ProfilePath,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$TargetSID
+    )
+    
+    Write-LogMessage -Message "Verifying ownership transfer for profile: $ProfilePath" -Level INFO
+    
+    $results = @{
+        Success = $true
+        Details = @{
+            RootFolder = $false
+            SpecialFolders = @{}
+            ImportantFiles = @{}
+            Registry = $false
+        }
+        Errors = @()
+    }
+    
+    try {
+        # Get target account
+        $targetAccount = New-Object System.Security.Principal.SecurityIdentifier($TargetSID)
+        $targetNTAccount = $targetAccount.Translate([System.Security.Principal.NTAccount])
+        
+        # Check root folder
+        try {
+            $acl = Get-Acl -Path $ProfilePath
+            $ownerSid = $acl.GetOwner([System.Security.Principal.SecurityIdentifier]).Value
+            
+            $results.Details.RootFolder = ($ownerSid -eq $TargetSID)
+            
+            if (-not $results.Details.RootFolder) {
+                $results.Success = $false
+                $results.Errors += "Root folder not owned by target user"
+            }
+        } catch {
+            $results.Success = $false
+            $results.Errors += "Failed to check root folder ownership: $_"
+        }
+        
+        # Check special folders
+        foreach ($folder in $script:SpecialFolders) {
+            $folderPath = Join-Path -Path $ProfilePath -ChildPath $folder
+            
+            if (Test-Path -Path $folderPath) {
+                try {
+                    $acl = Get-Acl -Path $folderPath
+                    $ownerSid = $acl.GetOwner([System.Security.Principal.SecurityIdentifier]).Value
+                    
+                    $results.Details.SpecialFolders[$folder] = ($ownerSid -eq $TargetSID)
+                    
+                    if (-not $results.Details.SpecialFolders[$folder]) {
+                        $results.Success = $false
+                        $results.Errors += "Special folder '$folder' not owned by target user"
+                    }
+                } catch {
+                    $results.Success = $false
+                    $results.Details.SpecialFolders[$folder] = $false
+                    $results.Errors += "Failed to check special folder '$folder' ownership: $_"
+                }
+            }
+        }
+        
+        # Check important files
+        $importantFiles = @(
+            "NTUSER.DAT",
+            "ntuser.ini"
+        )
+        
+        foreach ($file in $importantFiles) {
+            $filePath = Join-Path -Path $ProfilePath -ChildPath $file
+            
+            if (Test-Path -Path $filePath) {
+                try {
+                    $acl = Get-Acl -Path $filePath
+                    $ownerSid = $acl.GetOwner([System.Security.Principal.SecurityIdentifier]).Value
+                    
+                    $results.Details.ImportantFiles[$file] = ($ownerSid -eq $TargetSID)
+                    
+                    if (-not $results.Details.ImportantFiles[$file]) {
+                        $results.Success = $false
+                        $results.Errors += "Important file '$file' not owned by target user"
+                    }
+                } catch {
+                    $results.Success = $false
+                    $results.Details.ImportantFiles[$file] = $false
+                    $results.Errors += "Failed to check important file '$file' ownership: $_"
+                }
+            }
+        }
+        
+        # Check registry (if possible)
+        try {
+            $registryKey = Join-Path -Path $script:RegistryUserHive -ChildPath $TargetSID
+            
+            if (Test-Path -Path $registryKey) {
+                $acl = Get-Acl -Path $registryKey
+                $results.Details.Registry = ($acl.Owner -like "*$($targetNTAccount.Value)*")
+                
+                if (-not $results.Details.Registry) {
+                    $results.Success = $false
+                    $results.Errors += "Registry key not owned by target user"
+                }
+            }
+        } catch {
+            $results.Details.Registry = $false
+            $results.Errors += "Failed to check registry ownership: $_"
+        }
+        
+        # Log summary
+        if ($results.Success) {
+            Write-LogMessage -Message "Ownership transfer verification succeeded for profile: $ProfilePath" -Level INFO
+        } else {
+            Write-LogMessage -Message "Ownership transfer verification failed for profile: $ProfilePath" -Level WARNING
+            foreach ($error in $results.Errors) {
+                Write-LogMessage -Message "  - $error" -Level WARNING
+            }
+        }
+        
+        return $results
+    } catch {
+        Write-LogMessage -Message "Error verifying ownership transfer: $_" -Level ERROR
+        
+        $results.Success = $false
+        $results.Errors += "Global error: $_"
+        
+        return $results
+    }
+}
+
+<#
+.SYNOPSIS
+    Complete user profile ownership transfer with comprehensive handling.
+.DESCRIPTION
+    Performs a complete user profile ownership transfer with enhanced handling
+    for ACLs, registry hives, permissions, and verification.
+.PARAMETER SourceSID
+    The SID of the source user profile.
+.PARAMETER TargetSID
+    The SID of the target user profile.
+.PARAMETER CreateBackup
+    Whether to create a backup of the source profile before transfer.
+.PARAMETER IncludeRegistry
+    Whether to include registry hive ownership transfer.
+.PARAMETER Force
+    Force the transfer even if the verification fails.
+.EXAMPLE
+    Complete-ProfileOwnershipTransfer -SourceSID "S-1-5-21-..." -TargetSID "S-1-5-21-..." -IncludeRegistry
+#>
+function Complete-ProfileOwnershipTransfer {
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SourceSID,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$TargetSID,
+        
+        [Parameter()]
+        [switch]$CreateBackup = $false,
+        
+        [Parameter()]
+        [switch]$IncludeRegistry = $false,
+        
+        [Parameter()]
+        [switch]$Force = $false
+    )
+    
+    Write-LogMessage -Message "Starting complete profile ownership transfer from $SourceSID to $TargetSID" -Level INFO
+    
+    $results = @{
+        Success = $true
+        ProfilePath = $null
+        BackupCreated = $false
+        BackupPath = $null
+        FileAclSuccess = $false
+        RegistrySuccess = $false
+        VerificationSuccess = $false
+        VerificationDetails = $null
+        Errors = @()
+    }
+    
+    try {
+        # Check admin rights
+        $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+        if (-not $isAdmin) {
+            Write-LogMessage -Message "Complete profile ownership transfer requires administrative privileges" -Level ERROR
+            $results.Success = $false
+            $results.Errors += "Administrative privileges required"
+            return $results
+        }
+        
+        # Get profiles
+        $sourceProfilePath = Get-UserProfilePath -SID $SourceSID
+        if (-not $sourceProfilePath) {
+            Write-LogMessage -Message "Source profile not found for SID: $SourceSID" -Level ERROR
+            $results.Success = $false
+            $results.Errors += "Source profile not found"
+            return $results
+        }
+        
+        $targetProfilePath = Get-UserProfilePath -SID $TargetSID
+        if (-not $targetProfilePath) {
+            Write-LogMessage -Message "Target profile not found for SID: $TargetSID" -Level ERROR
+            $results.Success = $false
+            $results.Errors += "Target profile not found"
+            return $results
+        }
+        
+        $results.ProfilePath = $sourceProfilePath
+        
+        Write-LogMessage -Message "Source profile path: $sourceProfilePath" -Level INFO
+        Write-LogMessage -Message "Target profile path: $targetProfilePath" -Level INFO
+        
+        # Create backup if requested
+        if ($CreateBackup) {
+            try {
+                $backupPath = "$sourceProfilePath.bak_$(Get-Date -Format 'yyyyMMdd_HHmmss')"
+                Write-LogMessage -Message "Creating backup of source profile at: $backupPath" -Level INFO
+                
+                Copy-Item -Path $sourceProfilePath -Destination $backupPath -Recurse -Force
+                $results.BackupCreated = $true
+                $results.BackupPath = $backupPath
+                
+                Write-LogMessage -Message "Backup created successfully" -Level INFO
+            } catch {
+                Write-LogMessage -Message "Failed to create backup: $_" -Level ERROR
+                $results.Errors += "Failed to create backup: $_"
+                
+                if (-not $Force) {
+                    $results.Success = $false
+                    return $results
+                }
+            }
+        }
+        
+        # Transfer file ACLs
+        try {
+            Write-LogMessage -Message "Transferring file system ACLs" -Level INFO
+            
+            $aclResult = Set-ProfileFolderAcl -FolderPath $sourceProfilePath -TargetSID $TargetSID
+            $results.FileAclSuccess = $aclResult
+            
+            if (-not $aclResult) {
+                Write-LogMessage -Message "File system ACL transfer had issues" -Level WARNING
+                $results.Errors += "File system ACL transfer had issues"
+                
+                if (-not $Force) {
+                    $results.Success = $false
+                }
+            }
+        } catch {
+            Write-LogMessage -Message "Error during file system ACL transfer: $_" -Level ERROR
+            $results.FileAclSuccess = $false
+            $results.Errors += "Error during file system ACL transfer: $_"
+            
+            if (-not $Force) {
+                $results.Success = $false
+                return $results
+            }
+        }
+        
+        # Transfer registry ownership if requested
+        if ($IncludeRegistry) {
+            try {
+                Write-LogMessage -Message "Transferring registry hive ownership" -Level INFO
+                
+                $registryResult = Transfer-RegistryHiveOwnership -SourceSID $SourceSID -TargetSID $TargetSID
+                $results.RegistrySuccess = $registryResult
+                
+                if (-not $registryResult) {
+                    Write-LogMessage -Message "Registry hive ownership transfer had issues" -Level WARNING
+                    $results.Errors += "Registry hive ownership transfer had issues"
+                    
+                    if (-not $Force) {
+                        $results.Success = $false
+                    }
+                }
+            } catch {
+                Write-LogMessage -Message "Error during registry hive ownership transfer: $_" -Level ERROR
+                $results.RegistrySuccess = $false
+                $results.Errors += "Error during registry hive ownership transfer: $_"
+                
+                if (-not $Force) {
+                    $results.Success = $false
+                }
+            }
+        }
+        
+        # Verify ownership transfer
+        try {
+            Write-LogMessage -Message "Verifying ownership transfer" -Level INFO
+            
+            $verificationResults = Test-OwnershipTransfer -ProfilePath $sourceProfilePath -TargetSID $TargetSID
+            $results.VerificationSuccess = $verificationResults.Success
+            $results.VerificationDetails = $verificationResults.Details
+            
+            if (-not $verificationResults.Success) {
+                Write-LogMessage -Message "Ownership transfer verification had issues" -Level WARNING
+                foreach ($error in $verificationResults.Errors) {
+                    $results.Errors += $error
+                }
+                
+                if (-not $Force) {
+                    $results.Success = $false
+                }
+            }
+        } catch {
+            Write-LogMessage -Message "Error during ownership transfer verification: $_" -Level ERROR
+            $results.VerificationSuccess = $false
+            $results.Errors += "Error during ownership transfer verification: $_"
+            
+            if (-not $Force) {
+                $results.Success = $false
+            }
+        }
+        
+        # Final status report
+        if ($results.Success) {
+            Write-LogMessage -Message "Complete profile ownership transfer succeeded for: $sourceProfilePath" -Level INFO
+        } else {
+            Write-LogMessage -Message "Complete profile ownership transfer had issues for: $sourceProfilePath" -Level WARNING
+            foreach ($error in $results.Errors) {
+                Write-LogMessage -Message "  - $error" -Level WARNING
+            }
+        }
+        
+        return $results
+    } catch {
+        Write-LogMessage -Message "Error during complete profile ownership transfer: $_" -Level ERROR
+        
+        $results.Success = $false
+        $results.Errors += "Global error: $_"
+        
+        return $results
+    }
+}
+
 # Initialize the module
 Initialize-ProfileTransfer
 
 # Export the module members
-Export-ModuleMember -Function Get-UserProfileSID, Get-UserProfilePath, Transfer-UserProfile, Copy-UserRegistryHive, Restore-UserProfile 
+Export-ModuleMember -Function Get-UserProfileSID, Get-UserProfilePath, Transfer-UserProfile, Copy-UserRegistryHive, Restore-UserProfile, Set-ProfileFolderAcl, Transfer-RegistryHiveOwnership, Test-OwnershipTransfer, Complete-ProfileOwnershipTransfer 
