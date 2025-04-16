@@ -14,9 +14,13 @@ logs/
 .env
 .env.*
 *.env
-config/settings.json
 *_credentials.json
 *_secrets.*
+
+# Allow settings.json template but ignore user-specific settings
+*settings.user.json
+config/settings.*.json
+!config/settings.json
 
 # Editor directories and files
 .vscode/

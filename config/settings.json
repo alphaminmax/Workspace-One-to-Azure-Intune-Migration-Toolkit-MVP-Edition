@@ -1,0 +1,17 @@
+{
+    "localPath":"C:\\ProgramData\\IntuneMigration",
+    "logPath":"C:\\Temp\\Logs",
+    "targetTenant":{
+        "clientID":"YOUR_CLIENT_ID_HERE",
+        "clientSecret":"YOUR_CLIENT_SECRET_HERE",
+        "tenantName":"YOUR_TENANT_NAME_HERE",
+        "tenantID":"YOUR_TENANT_ID_HERE"
+    },
+    "ws1host":"YOUR_WS1_HOST_HERE",
+    "ws1username":"YOUR_WS1_USERNAME_HERE",
+    "ws1password":"YOUR_WS1_PASSWORD_HERE",
+    "ws1apikey":"YOUR_WS1_APIKEY_HERE",
+    "regPath":"HKLM\\SOFTWARE\\IntuneMigration",
+    "groupTag":"",
+    "bitlockerMethod":"MIGRATE"
+} 
