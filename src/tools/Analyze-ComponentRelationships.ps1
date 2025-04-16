@@ -17,6 +17,7 @@
 #                                                                                                                              #
 ################################################################################################################################
 
+<#
 .DESCRIPTION
     This script analyzes the relationships between components in the migration solution,
     identifying potential issues, optimization opportunities, and generating reports

@@ -1,3 +1,6 @@
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingCmdletAliases', 'Module', Justification='False positive in comment-based help')]
+param()
+
 ################################################################################################################################
 # Written by Jared Griego | Crayon | 4.16.2025 | Rev 1.0 | jared.griego@crayon.com                                              #
 #                                                                                                                              #
@@ -29,10 +32,10 @@
     Part of the Workspace One to Azure/Intune Migration Toolkit
     
     Common usage scenarios:
-    - Register device with Microsoft Autopilot during migration
-    - Validate migration status before Autopilot registration
-    - Securely handle credentials for Autopilot registration
-    - Enable non-admin users to trigger admin-level operations
+    * Register device with Microsoft Autopilot during migration
+    * Validate migration status before Autopilot registration
+    * Securely handle credentials for Autopilot registration
+    * Enable non-admin users to trigger admin-level operations
 #>
 
 # Module variables

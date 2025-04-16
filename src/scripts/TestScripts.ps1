@@ -1,3 +1,7 @@
+using namespace System.IO
+using namespace System.Management.Automation
+using namespace System.Diagnostics
+
 ################################################################################################################################
 # Written by Jared Griego | Crayon | 4.16.2025 | Rev 1.0 | jared.griego@crayon.com                                              #
 #                                                                                                                              #
@@ -16,6 +20,8 @@
 #      ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═══╝     ╚═════╝ ╚══════╝╚═╝  ╚═╝                                       #
 #                                                                                                                              #
 ################################################################################################################################
+
+<#
 .DESCRIPTION
 This script performs syntax validation and limited execution tests on all PowerShell scripts
 in the project without actually executing operations that would modify the system.
@@ -29,9 +35,6 @@ RequiredVersion: PowerShell 5.1 or higher
 #>
 
 #Requires -Version 5.1
-using namespace System.IO
-using namespace System.Management.Automation
-using namespace System.Diagnostics
 
 # Script-level variables
 $script:TestResults = @()
