@@ -270,6 +270,57 @@ This tool packages and prepares the migration toolkit for deployment via differe
 - **Documentation**: Generates deployment instructions
 - **Silent Mode**: Supports silent/automated migration
 
+## Configuration and Security
+
+### Secure Configuration Handling
+
+The toolkit uses a configuration file (`config/settings.json`) that requires sensitive credentials. To maintain security:
+
+1. **Template Configuration**: The repository includes a template configuration with placeholder values.
+
+2. **Local Configuration**: Create your actual configuration locally by copying and modifying the template:
+   ```powershell
+   # Copy the template
+   Copy-Item -Path .\config\settings.json -Destination .\config\settings.local.json
+   
+   # Edit the local copy with your actual credentials
+   notepad .\config\settings.local.json
+   ```
+
+3. **Environment Variables**: For production use, we recommend using environment variables instead of hardcoded credentials:
+   ```powershell
+   # Set environment variables for sensitive values
+   $env:WS1_CLIENT_ID = "your-client-id"
+   $env:WS1_CLIENT_SECRET = "your-client-secret"
+   
+   # The toolkit will check for these environment variables before using the config file
+   ```
+
+4. **GitIgnore**: The `.gitignore` file is configured to exclude actual configuration files with credentials from being committed to the repository.
+
+5. **Secure Storage**: For enterprise deployment, consider using Azure Key Vault or Windows Credential Manager to store and retrieve credentials securely.
+
+### Handling Settings in Different Environments
+
+For different environments (dev, test, prod), we recommend:
+
+1. **Environment-Specific Files**: Create separate config files for each environment:
+   ```
+   config/settings.dev.json
+   config/settings.test.json
+   config/settings.prod.json
+   ```
+
+2. **Environment Selection**: Specify which environment to use:
+   ```powershell
+   .\src\scripts\Invoke-WorkspaceOneSetup.ps1 -Environment "dev"
+   ```
+
+3. **Parameterized Deployment**: For CI/CD pipelines, use parameterized deployments:
+   ```powershell
+   .\deployment\Deploy-WS1EnrollmentTools.ps1 -ConfigSource "Pipeline" -TenantId $tenantId -ClientId $clientId
+   ```
+
 ## Getting Started: Quick Start Guide
 
 ### Prerequisites

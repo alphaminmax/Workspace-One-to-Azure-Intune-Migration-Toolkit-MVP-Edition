@@ -48,6 +48,19 @@ Edit the `config/WS1Config.json` file to set your environment-specific parameter
 }
 ```
 
+### Secure Credential Handling
+
+The MVP toolkit requires credentials for both Workspace ONE and Azure/Intune. To maintain security:
+
+1. **Never store credentials in the repository**: Use the template configuration files with placeholders
+2. **Use secure storage options**: 
+   - Environment variables
+   - Azure Key Vault
+   - Windows Credential Manager
+3. **Follow security best practices**: Principle of least privilege, credential rotation, etc.
+
+For comprehensive guidance on credential management, refer to the [Secure Credential Handling Documentation](Secure-Credential-Handling.md).
+
 ## Migration Process
 
 The MVP toolkit implements a simplified migration workflow:

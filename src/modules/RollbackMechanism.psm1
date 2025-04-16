@@ -823,7 +823,586 @@ function Invoke-MigrationStep {
     }
 }
 
-#endregion
+function Restore-BackupItems {
+    <#
+    .SYNOPSIS
+        Restores items from a backup based on the provided backup ID.
+    .DESCRIPTION
+        Restores registry keys and files from a backup created with the Backup-Items function.
+        The function can restore all items or specific item types (Registry or Files).
+        Also includes validation capabilities to verify the restoration process.
+    .PARAMETER BackupId
+        The ID of the backup to restore from.
+    .PARAMETER ItemType
+        The type of items to restore. Valid values are 'Registry', 'Files', or 'All'.
+    .PARAMETER Force
+        Switch to force restoration even if validation fails or conflicts exist.
+    .PARAMETER Validate
+        Switch to validate the restoration after completion.
+    .EXAMPLE
+        Restore-BackupItems -BackupId "Backup_20220915_123045" -ItemType All -Validate
+    .EXAMPLE
+        Restore-BackupItems -BackupId "Backup_20220915_123045" -ItemType Registry -Force
+    #>
+    [CmdletBinding(SupportsShouldProcess=$true, ConfirmImpact="High")]
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]$BackupId,
+        
+        [Parameter(Mandatory=$false)]
+        [ValidateSet("Registry", "Files", "All")]
+        [string]$ItemType = "All",
+        
+        [Parameter(Mandatory=$false)]
+        [switch]$Force,
+        
+        [Parameter(Mandatory=$false)]
+        [switch]$Validate
+    )
+    
+    try {
+        # Import the logging module
+        Import-Module -Name "$PSScriptRoot\LoggingModule.psm1" -Force
+        
+        # Log the start of the restoration process
+        Write-Log -Message "Starting restoration from backup ID: $BackupId" -Level Information
+        
+        # Get the backup path from the configuration or use default
+        $backupRootPath = Get-BackupRootPath
+        $backupPath = Join-Path -Path $backupRootPath -ChildPath $BackupId
+        
+        # Check if the backup exists
+        if (-not (Test-Path -Path $backupPath)) {
+            $errorMsg = "Backup not found: $BackupId"
+            Write-Log -Message $errorMsg -Level Error
+            throw $errorMsg
+        }
+        
+        # Check if manifest exists
+        $manifestPath = Join-Path -Path $backupPath -ChildPath "manifest.json"
+        if (-not (Test-Path -Path $manifestPath)) {
+            $errorMsg = "Backup manifest not found for backup ID: $BackupId"
+            Write-Log -Message $errorMsg -Level Error
+            throw $errorMsg
+        }
+        
+        # Load the manifest
+        $manifest = Get-Content -Path $manifestPath -Raw | ConvertFrom-Json
+        
+        # Initialize counters
+        $restoredItems = 0
+        $failedItems = 0
+        $registryItemsRestored = 0
+        $fileItemsRestored = 0
+        
+        # Check if the backup is already restored
+        if ($manifest.Status -eq "Restored" -and -not $Force) {
+            Write-Log -Message "Backup $BackupId is already marked as restored. Use -Force to restore again." -Level Warning
+            return [PSCustomObject]@{
+                Success = $false
+                BackupId = $BackupId
+                Message = "Backup is already marked as restored. Use -Force to restore again."
+                RestoredItems = 0
+                FailedItems = 0
+            }
+        }
+        
+        # Define a hashtable to store restoration statistics
+        $restorationStats = @{
+            StartTime = Get-Date
+            EndTime = $null
+            RestoredItems = 0
+            FailedItems = 0
+            RegistryItemsRestored = 0
+            FileItemsRestored = 0
+        }
+        
+        # Restore registry keys if specified
+        if ($ItemType -eq "All" -or $ItemType -eq "Registry") {
+            Write-Log -Message "Restoring registry keys from backup $BackupId" -Level Information
+            
+            $registryBackupPath = Join-Path -Path $backupPath -ChildPath "Registry"
+            if (Test-Path -Path $registryBackupPath) {
+                # Get all registry key backup files
+                $registryFiles = Get-ChildItem -Path $registryBackupPath -Filter "*.reg" -File
+                
+                if ($registryFiles -and $registryFiles.Count -gt 0) {
+                    $totalRegistryFiles = $registryFiles.Count
+                    $currentRegistryFile = 0
+                    
+                    foreach ($regFile in $registryFiles) {
+                        $currentRegistryFile++
+                        $progressPercent = ($currentRegistryFile / $totalRegistryFiles) * 100
+                        
+                        # Show progress
+                        Write-Progress -Activity "Restoring Registry Keys" -Status "Restoring $($regFile.Name)" -PercentComplete $progressPercent
+                        
+                        if ($PSCmdlet.ShouldProcess($regFile.FullName, "Import registry file")) {
+                            try {
+                                # Import the registry file
+                                $regImportResult = Start-Process -FilePath "reg" -ArgumentList "import `"$($regFile.FullName)`"" -NoNewWindow -Wait -PassThru
+                                
+                                if ($regImportResult.ExitCode -eq 0) {
+                                    $restoredItems++
+                                    $registryItemsRestored++
+                                    $restorationStats.RegistryItemsRestored++
+                                    $restorationStats.RestoredItems++
+                                    
+                                    Write-Log -Message "Successfully restored registry key: $($regFile.Name)" -Level Information
+                                }
+                                else {
+                                    $failedItems++
+                                    $restorationStats.FailedItems++
+                                    
+                                    Write-Log -Message "Failed to restore registry key: $($regFile.Name), Exit code: $($regImportResult.ExitCode)" -Level Error
+                                }
+                            }
+                            catch {
+                                $failedItems++
+                                $restorationStats.FailedItems++
+                                
+                                Write-Log -Message "Error restoring registry key: $($regFile.Name), Error: $_" -Level Error
+                            }
+                        }
+                    }
+                    
+                    Write-Progress -Activity "Restoring Registry Keys" -Completed
+                }
+                else {
+                    Write-Log -Message "No registry keys found in backup $BackupId" -Level Warning
+                }
+            }
+            else {
+                Write-Log -Message "Registry backup path not found for backup ID: $BackupId" -Level Warning
+            }
+        }
+        
+        # Restore files if specified
+        if ($ItemType -eq "All" -or $ItemType -eq "Files") {
+            Write-Log -Message "Restoring files from backup $BackupId" -Level Information
+            
+            $filesBackupPath = Join-Path -Path $backupPath -ChildPath "Files"
+            if (Test-Path -Path $filesBackupPath) {
+                # Load the file manifest
+                $fileManifestPath = Join-Path -Path $filesBackupPath -ChildPath "filemanifest.json"
+                
+                if (Test-Path -Path $fileManifestPath) {
+                    $fileManifest = Get-Content -Path $fileManifestPath -Raw | ConvertFrom-Json
+                    
+                    if ($fileManifest.Files -and $fileManifest.Files.Count -gt 0) {
+                        $totalFiles = $fileManifest.Files.Count
+                        $currentFile = 0
+                        
+                        foreach ($file in $fileManifest.Files) {
+                            $currentFile++
+                            $progressPercent = ($currentFile / $totalFiles) * 100
+                            
+                            # Show progress
+                            Write-Progress -Activity "Restoring Files" -Status "Restoring $($file.OriginalPath)" -PercentComplete $progressPercent
+                            
+                            $backupFilePath = Join-Path -Path $filesBackupPath -ChildPath $file.BackupRelativePath
+                            
+                            if (Test-Path -Path $backupFilePath) {
+                                # Ensure target directory exists
+                                $targetDir = [System.IO.Path]::GetDirectoryName($file.OriginalPath)
+                                if (-not (Test-Path -Path $targetDir)) {
+                                    try {
+                                        New-Item -Path $targetDir -ItemType Directory -Force | Out-Null
+                                        Write-Log -Message "Created directory: $targetDir" -Level Information
+                                    }
+                                    catch {
+                                        Write-Log -Message "Failed to create directory: $targetDir, Error: $_" -Level Error
+                                        $failedItems++
+                                        $restorationStats.FailedItems++
+                                        continue
+                                    }
+                                }
+                                
+                                if ($PSCmdlet.ShouldProcess($file.OriginalPath, "Restore file")) {
+                                    try {
+                                        # Check if target file exists and should be overwritten
+                                        if (Test-Path -Path $file.OriginalPath) {
+                                            if ($Force) {
+                                                # Backup the current file before replacing
+                                                $tempBackupPath = "$($file.OriginalPath).pre_restore"
+                                                Copy-Item -Path $file.OriginalPath -Destination $tempBackupPath -Force -ErrorAction SilentlyContinue
+                                                
+                                                # Remove the current file
+                                                Remove-Item -Path $file.OriginalPath -Force
+                                                Write-Log -Message "Removed existing file: $($file.OriginalPath)" -Level Information
+                                            }
+                                            else {
+                                                Write-Log -Message "File already exists: $($file.OriginalPath). Use -Force to overwrite." -Level Warning
+                                                $failedItems++
+                                                $restorationStats.FailedItems++
+                                                continue
+                                            }
+                                        }
+                                        
+                                        # Copy the backup file to the original location
+                                        Copy-Item -Path $backupFilePath -Destination $file.OriginalPath -Force
+                                        
+                                        $restoredItems++
+                                        $fileItemsRestored++
+                                        $restorationStats.FileItemsRestored++
+                                        $restorationStats.RestoredItems++
+                                        
+                                        Write-Log -Message "Successfully restored file: $($file.OriginalPath)" -Level Information
+                                    }
+                                    catch {
+                                        $failedItems++
+                                        $restorationStats.FailedItems++
+                                        
+                                        Write-Log -Message "Error restoring file: $($file.OriginalPath), Error: $_" -Level Error
+                                    }
+                                }
+                            }
+                            else {
+                                Write-Log -Message "Backup file not found: $backupFilePath" -Level Warning
+                                $failedItems++
+                                $restorationStats.FailedItems++
+                            }
+                        }
+                        
+                        Write-Progress -Activity "Restoring Files" -Completed
+                    }
+                    else {
+                        Write-Log -Message "No files found in backup $BackupId" -Level Warning
+                    }
+                }
+                else {
+                    Write-Log -Message "File manifest not found for backup ID: $BackupId" -Level Warning
+                }
+            }
+            else {
+                Write-Log -Message "Files backup path not found for backup ID: $BackupId" -Level Warning
+            }
+        }
+        
+        # Update restoration statistics
+        $restorationStats.EndTime = Get-Date
+        
+        # Update the manifest with restoration information
+        $manifest.LastRestoreDate = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+        $manifest.Status = "Restored"
+        $manifest.RestorationStats = $restorationStats
+        
+        # Save the updated manifest
+        $manifest | ConvertTo-Json -Depth 5 | Set-Content -Path $manifestPath -Force
+        
+        # Log the completion of the restoration process
+        $summaryMessage = "Restoration completed for backup $BackupId. Restored items: $restoredItems (Registry: $registryItemsRestored, Files: $fileItemsRestored), Failed items: $failedItems"
+        Write-Log -Message $summaryMessage -Level Information
+        
+        # Validate the restoration if requested
+        $validationResults = $null
+        if ($Validate) {
+            Write-Log -Message "Validating restoration for backup $BackupId" -Level Information
+            $validationResults = Test-RestorationValidity -BackupId $BackupId -ItemType $ItemType
+            
+            # Add validation results to the manifest
+            $manifest.ValidationResults = $validationResults
+            $manifest | ConvertTo-Json -Depth 5 | Set-Content -Path $manifestPath -Force
+            
+            # Log validation results
+            Write-Log -Message "Validation results: $($validationResults.ValidItems) items valid, $($validationResults.InvalidItems) items invalid" -Level Information
+        }
+        
+        # Return result object
+        return [PSCustomObject]@{
+            Success = ($failedItems -eq 0)
+            BackupId = $BackupId
+            Message = $summaryMessage
+            RestoredItems = $restoredItems
+            FailedItems = $failedItems
+            RegistryItemsRestored = $registryItemsRestored
+            FileItemsRestored = $fileItemsRestored
+            ValidationResults = $validationResults
+        }
+    }
+    catch {
+        Write-Log -Message "Error in Restore-BackupItems: $_" -Level Error
+        
+        return [PSCustomObject]@{
+            Success = $false
+            BackupId = $BackupId
+            Message = "Error in restoration process: $_"
+            RestoredItems = $restoredItems
+            FailedItems = $failedItems + 1
+        }
+    }
+}
 
-# Export public functions
-Export-ModuleMember -Function Initialize-RollbackMechanism, New-MigrationRestorePoint, Backup-WorkspaceOneConfiguration, Restore-WorkspaceOneMigration, Complete-MigrationTransaction, Invoke-MigrationStep 
+function Test-RestorationValidity {
+    <#
+    .SYNOPSIS
+        Validates that items were correctly restored from backup.
+    .DESCRIPTION
+        Checks that registry keys and files were correctly restored from a backup.
+        Verifies that registry keys exist and files match their backup versions.
+    .PARAMETER BackupId
+        The ID of the backup to validate.
+    .PARAMETER ItemType
+        The type of items to validate. Valid values are 'Registry', 'Files', or 'All'.
+    .EXAMPLE
+        Test-RestorationValidity -BackupId "Backup_20220915_123045" -ItemType All
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param (
+        [Parameter(Mandatory=$true)]
+        [string]$BackupId,
+        
+        [Parameter(Mandatory=$false)]
+        [ValidateSet("Registry", "Files", "All")]
+        [string]$ItemType = "All"
+    )
+    
+    try {
+        # Import the logging module
+        Import-Module -Name "$PSScriptRoot\LoggingModule.psm1" -Force
+        
+        # Log the start of the validation process
+        Write-Log -Message "Starting validation for backup ID: $BackupId" -Level Information
+        
+        # Get the backup path from the configuration or use default
+        $backupRootPath = Get-BackupRootPath
+        $backupPath = Join-Path -Path $backupRootPath -ChildPath $BackupId
+        
+        # Check if the backup exists
+        if (-not (Test-Path -Path $backupPath)) {
+            $errorMsg = "Backup not found: $BackupId"
+            Write-Log -Message $errorMsg -Level Error
+            throw $errorMsg
+        }
+        
+        # Initialize counters
+        $validItems = 0
+        $invalidItems = 0
+        $validRegistryItems = 0
+        $invalidRegistryItems = 0
+        $validFileItems = 0
+        $invalidFileItems = 0
+        
+        # Detailed validation results
+        $detailedResults = @{
+            Registry = @()
+            Files = @()
+        }
+        
+        # Validate registry keys if specified
+        if ($ItemType -eq "All" -or $ItemType -eq "Registry") {
+            Write-Log -Message "Validating registry keys from backup $BackupId" -Level Information
+            
+            $registryBackupPath = Join-Path -Path $backupPath -ChildPath "Registry"
+            if (Test-Path -Path $registryBackupPath) {
+                # Get manifest to extract the original registry keys
+                $manifestPath = Join-Path -Path $backupPath -ChildPath "manifest.json"
+                if (Test-Path -Path $manifestPath) {
+                    $manifest = Get-Content -Path $manifestPath -Raw | ConvertFrom-Json
+                    
+                    if ($manifest.RegistryKeys -and $manifest.RegistryKeys.Count -gt 0) {
+                        $totalKeys = $manifest.RegistryKeys.Count
+                        $currentKey = 0
+                        
+                        foreach ($regKey in $manifest.RegistryKeys) {
+                            $currentKey++
+                            $progressPercent = ($currentKey / $totalKeys) * 100
+                            
+                            # Show progress
+                            Write-Progress -Activity "Validating Registry Keys" -Status "Checking $regKey" -PercentComplete $progressPercent
+                            
+                            # Check if the registry key exists
+                            $regKeyExists = $false
+                            try {
+                                # Convert PowerShell-style registry path to traditional format
+                                $regPath = $regKey -replace "HKLM:", "HKEY_LOCAL_MACHINE" -replace "HKCU:", "HKEY_CURRENT_USER"
+                                
+                                # Use reg query to check if key exists
+                                $regQueryResult = Start-Process -FilePath "reg" -ArgumentList "query `"$regPath`"" -NoNewWindow -Wait -PassThru
+                                $regKeyExists = ($regQueryResult.ExitCode -eq 0)
+                            }
+                            catch {
+                                $regKeyExists = $false
+                                Write-Log -Message "Error checking registry key: $regKey, Error: $_" -Level Error
+                            }
+                            
+                            if ($regKeyExists) {
+                                $validItems++
+                                $validRegistryItems++
+                                Write-Log -Message "Registry key exists: $regKey" -Level Information
+                                
+                                $detailedResults.Registry += [PSCustomObject]@{
+                                    Key = $regKey
+                                    IsValid = $true
+                                    Reason = "Key exists"
+                                }
+                            }
+                            else {
+                                $invalidItems++
+                                $invalidRegistryItems++
+                                Write-Log -Message "Registry key does not exist: $regKey" -Level Warning
+                                
+                                $detailedResults.Registry += [PSCustomObject]@{
+                                    Key = $regKey
+                                    IsValid = $false
+                                    Reason = "Key does not exist"
+                                }
+                            }
+                        }
+                        
+                        Write-Progress -Activity "Validating Registry Keys" -Completed
+                    }
+                    else {
+                        Write-Log -Message "No registry keys found in backup manifest for $BackupId" -Level Warning
+                    }
+                }
+                else {
+                    Write-Log -Message "Manifest not found for backup ID: $BackupId" -Level Warning
+                }
+            }
+            else {
+                Write-Log -Message "Registry backup path not found for backup ID: $BackupId" -Level Warning
+            }
+        }
+        
+        # Validate files if specified
+        if ($ItemType -eq "All" -or $ItemType -eq "Files") {
+            Write-Log -Message "Validating files from backup $BackupId" -Level Information
+            
+            $filesBackupPath = Join-Path -Path $backupPath -ChildPath "Files"
+            if (Test-Path -Path $filesBackupPath) {
+                # Load the file manifest
+                $fileManifestPath = Join-Path -Path $filesBackupPath -ChildPath "filemanifest.json"
+                
+                if (Test-Path -Path $fileManifestPath) {
+                    $fileManifest = Get-Content -Path $fileManifestPath -Raw | ConvertFrom-Json
+                    
+                    if ($fileManifest.Files -and $fileManifest.Files.Count -gt 0) {
+                        $totalFiles = $fileManifest.Files.Count
+                        $currentFile = 0
+                        
+                        foreach ($file in $fileManifest.Files) {
+                            $currentFile++
+                            $progressPercent = ($currentFile / $totalFiles) * 100
+                            
+                            # Show progress
+                            Write-Progress -Activity "Validating Files" -Status "Checking $($file.OriginalPath)" -PercentComplete $progressPercent
+                            
+                            # Check if the file exists and matches the backup
+                            $fileValid = $false
+                            $validationReason = ""
+                            
+                            if (Test-Path -Path $file.OriginalPath) {
+                                $backupFilePath = Join-Path -Path $filesBackupPath -ChildPath $file.BackupRelativePath
+                                
+                                if (Test-Path -Path $backupFilePath) {
+                                    try {
+                                        # Compare file hash to verify content
+                                        $originalHash = Get-FileHash -Path $file.OriginalPath -Algorithm SHA256
+                                        $backupHash = Get-FileHash -Path $backupFilePath -Algorithm SHA256
+                                        
+                                        if ($originalHash.Hash -eq $backupHash.Hash) {
+                                            $fileValid = $true
+                                            $validationReason = "File exists and content matches"
+                                        }
+                                        else {
+                                            $fileValid = $false
+                                            $validationReason = "File exists but content differs"
+                                        }
+                                    }
+                                    catch {
+                                        $fileValid = $false
+                                        $validationReason = "Error comparing files: $_"
+                                        Write-Log -Message "Error comparing files: $($file.OriginalPath), Error: $_" -Level Error
+                                    }
+                                }
+                                else {
+                                    $fileValid = $false
+                                    $validationReason = "Backup file not found"
+                                    Write-Log -Message "Backup file not found: $backupFilePath" -Level Warning
+                                }
+                            }
+                            else {
+                                $fileValid = $false
+                                $validationReason = "Original file not found"
+                                Write-Log -Message "File does not exist: $($file.OriginalPath)" -Level Warning
+                            }
+                            
+                            if ($fileValid) {
+                                $validItems++
+                                $validFileItems++
+                                Write-Log -Message "File is valid: $($file.OriginalPath)" -Level Information
+                                
+                                $detailedResults.Files += [PSCustomObject]@{
+                                    Path = $file.OriginalPath
+                                    IsValid = $true
+                                    Reason = $validationReason
+                                }
+                            }
+                            else {
+                                $invalidItems++
+                                $invalidFileItems++
+                                Write-Log -Message "File is invalid: $($file.OriginalPath) - $validationReason" -Level Warning
+                                
+                                $detailedResults.Files += [PSCustomObject]@{
+                                    Path = $file.OriginalPath
+                                    IsValid = $false
+                                    Reason = $validationReason
+                                }
+                            }
+                        }
+                        
+                        Write-Progress -Activity "Validating Files" -Completed
+                    }
+                    else {
+                        Write-Log -Message "No files found in file manifest for backup $BackupId" -Level Warning
+                    }
+                }
+                else {
+                    Write-Log -Message "File manifest not found for backup ID: $BackupId" -Level Warning
+                }
+            }
+            else {
+                Write-Log -Message "Files backup path not found for backup ID: $BackupId" -Level Warning
+            }
+        }
+        
+        # Log the completion of the validation process
+        $summaryMessage = "Validation completed for backup $BackupId. Valid items: $validItems (Registry: $validRegistryItems, Files: $validFileItems), Invalid items: $invalidItems (Registry: $invalidRegistryItems, Files: $invalidFileItems)"
+        Write-Log -Message $summaryMessage -Level Information
+        
+        # Return result object
+        return [PSCustomObject]@{
+            Success = ($invalidItems -eq 0 -and $validItems -gt 0)
+            BackupId = $BackupId
+            Message = $summaryMessage
+            ValidItems = $validItems
+            InvalidItems = $invalidItems
+            ValidRegistryItems = $validRegistryItems
+            InvalidRegistryItems = $invalidRegistryItems
+            ValidFileItems = $validFileItems
+            InvalidFileItems = $invalidFileItems
+            DetailedResults = $detailedResults
+        }
+    }
+    catch {
+        Write-Log -Message "Error in Test-RestorationValidity: $_" -Level Error
+        
+        return [PSCustomObject]@{
+            Success = $false
+            BackupId = $BackupId
+            Message = "Error in validation process: $_"
+            ValidItems = 0
+            InvalidItems = 1
+        }
+    }
+}
+
+# Export the module functions
+Export-ModuleMember -Function Backup-Items, 
+                              Restore-BackupItems, 
+                              Get-BackupStatus,
+                              Test-BackupIntegrity,
+                              Test-RestorationValidity,
+                              Remove-Backup 

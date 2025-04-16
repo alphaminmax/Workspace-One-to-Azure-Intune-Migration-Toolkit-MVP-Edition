@@ -1,0 +1,48 @@
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# PowerShell module files
+*.psd1
+*.psm1.bak
+
+# Logs
+logs/
+*.log
+
+# Environment and configuration files
+.env
+config/settings.json
+*_credentials.json
+*_secrets.*
+
+# Editor directories and files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Temporary files
+[Tt]emp/
+*.tmp
+*.bak
+
+# Package files
+*.zip
+*.tar.gz
+*.tgz
+
+# Windows MSI installer files
+*.msi
+
+# Certificate files
+*.pfx
+*.p12
+*.cer
+*.pem
+
+# User-specific files
+*settings.user.json 

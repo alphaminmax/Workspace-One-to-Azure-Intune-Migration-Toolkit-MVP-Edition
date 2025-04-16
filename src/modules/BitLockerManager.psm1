@@ -41,15 +41,11 @@ if (-not (Get-Module -Name 'SecurityFoundation' -ListAvailable)) {
 
 # Script level variables
 $script:BitLockerConfig = @{
-    BackupPath = Join-Path -Path $env:TEMP -ChildPath "WS1Migration\BitLockerBackup"
-    AzureKeyVaultName = $null
-    AzureKeyVaultResourceGroup = $null
-    AzureTenantId = $null
-    AzureSubscriptionId = $null
+    BackupPath = "$env:ProgramData\BitLocker"
     EnableEncryption = $true
-    EncryptionMethod = "XtsAes256"  # Options: Aes128, Aes256, XtsAes128, XtsAes256
-    RecoveryKeyBackupType = "Local"  # Options: Local, AzureAD, KeyVault
-    KeyProtectorTypes = @("RecoveryPassword", "TpmPin")
+    RecoveryKeyType = "Password"  # Password or Key
+    EncryptionMethod = "XtsAes256"
+    SecretExpirationDays = 365  # Default expiration for Key Vault secrets
 }
 
 #region Private Functions
@@ -137,21 +133,61 @@ function Get-BitLockerRecoveryPassword {
 function Test-AzPowerShellModule {
     <#
     .SYNOPSIS
-        Checks if the required Azure PowerShell module is installed.
+        Checks if the required Azure PowerShell modules are installed.
+    .DESCRIPTION
+        Validates that all necessary Azure PowerShell modules are installed
+        and available for use with the BitLocker Manager.
+    .OUTPUTS
+        Boolean. Returns $true if all required modules are installed.
     #>
-    if (Get-Module -Name Az.KeyVault -ListAvailable) {
-        Write-Log -Message "Az.KeyVault module is installed." -Level Information
-        return $true
-    } else {
-        Write-Log -Message "Az.KeyVault module is not installed." -Level Warning
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param()
+    
+    $requiredModules = @('Az.Accounts', 'Az.KeyVault')
+    $missingModules = @()
+    
+    foreach ($module in $requiredModules) {
+        if (-not (Get-Module -Name $module -ListAvailable)) {
+            $missingModules += $module
+        }
+    }
+    
+    if ($missingModules.Count -gt 0) {
+        Write-Log -Message "Missing required Azure PowerShell modules: $($missingModules -join ', ')" -Level Warning
+        Write-Log -Message "To install, run: Install-Module -Name $($missingModules[0]) -AllowClobber -Force" -Level Information
         return $false
+    } else {
+        Write-Log -Message "All required Azure PowerShell modules are installed." -Level Information
+        return $true
     }
 }
 
 function Connect-AzureKeyVault {
     <#
     .SYNOPSIS
-        Connects to Azure and the Key Vault.
+        Establishes a connection to Azure Key Vault.
+    .DESCRIPTION
+        This function creates a connection to Azure Key Vault for BitLocker key management.
+        It supports authentication via credentials or client certificate.
+    .PARAMETER KeyVaultName
+        The name of the Azure Key Vault to connect to.
+    .PARAMETER TenantId
+        The Azure AD tenant ID.
+    .PARAMETER Credential
+        The credential object for authentication.
+    .PARAMETER UseClientCertificate
+        Switch to use certificate-based authentication.
+    .PARAMETER CertificateThumbprint
+        The thumbprint of the certificate to use for authentication.
+    .PARAMETER ApplicationId
+        The Application (Client) ID to use for certificate-based authentication.
+    .EXAMPLE
+        Connect-AzureKeyVault -KeyVaultName "CompanyKeyVault" -TenantId "00000000-0000-0000-0000-000000000000" -Credential $credential
+    .EXAMPLE
+        Connect-AzureKeyVault -KeyVaultName "CompanyKeyVault" -TenantId "00000000-0000-0000-0000-000000000000" -UseClientCertificate -CertificateThumbprint "1234567890ABCDEF1234567890ABCDEF12345678" -ApplicationId "00000000-0000-0000-0000-000000000000"
+    .OUTPUTS
+        PSObject with connection status and details.
     #>
     [CmdletBinding()]
     param (
@@ -161,48 +197,146 @@ function Connect-AzureKeyVault {
         [Parameter(Mandatory = $true)]
         [string]$TenantId,
         
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]$Credential
+        [Parameter(Mandatory = $false, ParameterSetName = "CredentialAuth")]
+        [System.Management.Automation.PSCredential]$Credential,
+        
+        [Parameter(Mandatory = $true, ParameterSetName = "CertificateAuth")]
+        [switch]$UseClientCertificate,
+        
+        [Parameter(Mandatory = $true, ParameterSetName = "CertificateAuth")]
+        [string]$CertificateThumbprint,
+        
+        [Parameter(Mandatory = $true, ParameterSetName = "CertificateAuth")]
+        [string]$ApplicationId
     )
     
     try {
-        # Check if Az modules are installed
-        if (-not (Test-AzPowerShellModule)) {
-            Write-Log -Message "Azure PowerShell modules required for Azure Key Vault integration are not installed." -Level Error
-            return $false
-        }
+        # Import the logging module
+        Import-Module -Name "$PSScriptRoot\LoggingModule.psm1" -Force
+        Write-Log -Message "Attempting to connect to Azure Key Vault: $KeyVaultName" -Level Information
         
-        # Check if already connected
-        try {
-            $context = Get-AzContext -ErrorAction Stop
-            if ($context -and $context.Tenant.Id -eq $TenantId) {
-                Write-Log -Message "Already connected to Azure with the correct tenant." -Level Information
-                return $true
+        # Check for required modules
+        $requiredModules = @("Az.Accounts", "Az.KeyVault")
+        $missingModules = @()
+        
+        foreach ($module in $requiredModules) {
+            if (-not (Get-Module -Name $module -ListAvailable)) {
+                $missingModules += $module
             }
-        } catch {
-            # Not connected, will connect below
         }
         
-        # Connect to Azure
-        if ($Credential) {
-            Connect-AzAccount -TenantId $TenantId -Credential $Credential -ErrorAction Stop | Out-Null
-        } else {
-            Connect-AzAccount -TenantId $TenantId -ErrorAction Stop | Out-Null
+        if ($missingModules.Count -gt 0) {
+            Write-Log -Message "Required modules not found: $($missingModules -join ', ')" -Level Warning
+            
+            # Attempt to install missing modules
+            foreach ($module in $missingModules) {
+                try {
+                    Write-Log -Message "Attempting to install module: $module" -Level Information
+                    Install-Module -Name $module -Scope CurrentUser -Force -AllowClobber
+                    Write-Log -Message "Successfully installed module: $module" -Level Information
+                }
+                catch {
+                    Write-Log -Message "Failed to install module $module: $_" -Level Error
+                    throw "Failed to install required module $module. Please install it manually or ensure internet connectivity."
+                }
+            }
         }
         
-        # Verify Key Vault exists
-        $keyVault = Get-AzKeyVault -VaultName $KeyVaultName -ErrorAction SilentlyContinue
-        if (-not $keyVault) {
-            Write-Log -Message "Key Vault '$KeyVaultName' not found." -Level Error
-            return $false
+        # Disable progress bar to improve performance
+        $ProgressPreference = 'SilentlyContinue'
+        
+        # Attempt to connect to Azure
+        try {
+            # Clear any existing Azure context
+            Clear-AzContext -Force -ErrorAction SilentlyContinue
+            
+            if ($UseClientCertificate) {
+                Write-Log -Message "Connecting to Azure using certificate authentication" -Level Information
+                
+                # Verify certificate exists
+                $cert = Get-Item -Path "Cert:\LocalMachine\My\$CertificateThumbprint" -ErrorAction SilentlyContinue
+                if (-not $cert) {
+                    $cert = Get-Item -Path "Cert:\CurrentUser\My\$CertificateThumbprint" -ErrorAction SilentlyContinue
+                }
+                
+                if (-not $cert) {
+                    throw "Certificate with thumbprint $CertificateThumbprint not found"
+                }
+                
+                # Connect using certificate
+                Connect-AzAccount -ServicePrincipal -TenantId $TenantId -CertificateThumbprint $CertificateThumbprint -ApplicationId $ApplicationId
+            }
+            else {
+                Write-Log -Message "Connecting to Azure using credential authentication" -Level Information
+                
+                # If no credential is provided, prompt for it
+                if (-not $Credential) {
+                    $Credential = Get-Credential -Message "Enter Azure credentials"
+                }
+                
+                # Connect using credential
+                Connect-AzAccount -TenantId $TenantId -Credential $Credential
+            }
+            
+            Write-Log -Message "Successfully connected to Azure" -Level Information
+        }
+        catch {
+            Write-Log -Message "Failed to connect to Azure: $_" -Level Error
+            throw "Failed to authenticate to Azure: $_"
         }
         
-        Write-Log -Message "Successfully connected to Azure Key Vault: $KeyVaultName" -Level Information
-        return $true
+        # Verify Key Vault access
+        try {
+            $keyVault = Get-AzKeyVault -VaultName $KeyVaultName -ErrorAction Stop
+            
+            if (-not $keyVault) {
+                throw "Key Vault $KeyVaultName not found"
+            }
+            
+            Write-Log -Message "Successfully connected to Key Vault: $KeyVaultName" -Level Information
+            
+            # Store connection info in script-level variable
+            $script:KeyVaultConnection = @{
+                KeyVaultName = $KeyVaultName
+                TenantId = $TenantId
+                Connected = $true
+                ConnectionTime = Get-Date
+                KeyVaultUri = $keyVault.VaultUri
+                AuthMethod = if ($UseClientCertificate) { "Certificate" } else { "Credential" }
+            }
+            
+            return [PSCustomObject]@{
+                Success = $true
+                KeyVaultName = $KeyVaultName
+                Message = "Successfully connected to Key Vault"
+                KeyVaultUri = $keyVault.VaultUri
+            }
+        }
+        catch {
+            Write-Log -Message "Failed to access Key Vault $KeyVaultName: $_" -Level Error
+            
+            # Clear connection info
+            $script:KeyVaultConnection = $null
+            
+            return [PSCustomObject]@{
+                Success = $false
+                KeyVaultName = $KeyVaultName
+                Message = "Failed to access Key Vault: $_"
+            }
+        }
+        finally {
+            # Restore progress preference
+            $ProgressPreference = 'Continue'
+        }
     }
     catch {
-        Write-Log -Message "Failed to connect to Azure Key Vault: $_" -Level Error
-        return $false
+        Write-Log -Message "Error in Connect-AzureKeyVault: $_" -Level Error
+        
+        return [PSCustomObject]@{
+            Success = $false
+            KeyVaultName = $KeyVaultName
+            Message = "Error connecting to Key Vault: $_"
+        }
     }
 }
 
@@ -262,6 +396,15 @@ function Format-SecretName {
 .PARAMETER KeyProtectorTypes
     Types of key protectors to use with BitLocker.
     
+.PARAMETER CertificateThumbprint
+    Thumbprint of the certificate to use for authentication.
+    
+.PARAMETER ApplicationId
+    Application (client) ID for service principal authentication.
+    
+.PARAMETER SecretExpirationDays
+    Number of days before the secret expires.
+    
 .EXAMPLE
     Set-BitLockerConfiguration -AzureKeyVaultName "MyVault" -AzureTenantId "tenant-id" -RecoveryKeyBackupType "KeyVault"
     
@@ -299,7 +442,16 @@ function Set-BitLockerConfiguration {
         
         [Parameter(Mandatory = $false)]
         [ValidateSet("RecoveryPassword", "TpmPin", "TpmKey", "Password", "ExternalKey")]
-        [string[]]$KeyProtectorTypes
+        [string[]]$KeyProtectorTypes,
+        
+        [Parameter(Mandatory = $false)]
+        [string]$CertificateThumbprint,
+        
+        [Parameter(Mandatory = $false)]
+        [string]$ApplicationId,
+        
+        [Parameter(Mandatory = $false)]
+        [int]$SecretExpirationDays
     )
     
     # Update configuration with provided values
@@ -340,6 +492,18 @@ function Set-BitLockerConfiguration {
     
     if ($PSBoundParameters.ContainsKey('KeyProtectorTypes')) {
         $script:BitLockerConfig.KeyProtectorTypes = $KeyProtectorTypes
+    }
+    
+    if ($PSBoundParameters.ContainsKey('CertificateThumbprint')) {
+        $script:BitLockerConfig.CertificateThumbprint = $CertificateThumbprint
+    }
+    
+    if ($PSBoundParameters.ContainsKey('ApplicationId')) {
+        $script:BitLockerConfig.ApplicationId = $ApplicationId
+    }
+    
+    if ($PSBoundParameters.ContainsKey('SecretExpirationDays')) {
+        $script:BitLockerConfig.SecretExpirationDays = $SecretExpirationDays
     }
     
     Write-Log -Message "BitLocker configuration updated" -Level Information
@@ -533,6 +697,18 @@ IMPORTANT: Store this file in a secure location!
 .PARAMETER TenantId
     The Azure AD tenant ID.
     
+.PARAMETER UseClientCertificate
+    Switch to use certificate-based authentication.
+    
+.PARAMETER CertificateThumbprint
+    Thumbprint of the certificate to use for authentication.
+    
+.PARAMETER ApplicationId
+    Application (client) ID for service principal authentication.
+    
+.PARAMETER ForceRotation
+    Switch to force secret rotation.
+    
 .EXAMPLE
     Backup-BitLockerKeyToKeyVault -DriveLetter "C:" -KeyVaultName "MyKeyVault" -TenantId "tenant-id"
     
@@ -540,86 +716,194 @@ IMPORTANT: Store this file in a secure location!
     System.Boolean. Returns $true if backup was successful.
 #>
 function Backup-BitLockerKeyToKeyVault {
+    <#
+    .SYNOPSIS
+        Backs up BitLocker recovery keys to Azure Key Vault.
+    .DESCRIPTION
+        This function retrieves BitLocker recovery keys from specified volumes and
+        stores them securely in Azure Key Vault with appropriate metadata.
+    .PARAMETER KeyVaultName
+        The name of the Azure Key Vault to store the keys in.
+    .PARAMETER VolumeId
+        Optional volume ID to backup only specific volume's key.
+    .PARAMETER SecretNamePrefix
+        Prefix to use for the secret names in Key Vault.
+    .PARAMETER SecretExpiryDays
+        Number of days until the secret expires in Key Vault.
+    .EXAMPLE
+        Backup-BitLockerKeyToKeyVault -KeyVaultName "CompanyKeyVault"
+    .EXAMPLE
+        Backup-BitLockerKeyToKeyVault -KeyVaultName "CompanyKeyVault" -VolumeId "C:"
+    .OUTPUTS
+        PSObject with backup operation status and results.
+    #>
     [CmdletBinding()]
-    [OutputType([bool])]
     param (
-        [Parameter(Mandatory = $false)]
-        [string]$DriveLetter = "C:",
+        [Parameter(Mandatory = $true)]
+        [string]$KeyVaultName,
         
         [Parameter(Mandatory = $false)]
-        [string]$KeyVaultName = $script:BitLockerConfig.AzureKeyVaultName,
+        [string]$VolumeId,
         
         [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]$Credential,
+        [string]$SecretNamePrefix = "BitLocker-",
         
         [Parameter(Mandatory = $false)]
-        [string]$TenantId = $script:BitLockerConfig.AzureTenantId
+        [int]$SecretExpiryDays = $script:BitLockerConfig.SecretExpirationDays
     )
     
     try {
-        # Validate parameters
-        if (-not $KeyVaultName) {
-            Write-Log -Message "Azure Key Vault name not specified" -Level Error
-            return $false
-        }
+        # Import the logging module
+        Import-Module -Name "$PSScriptRoot\LoggingModule.psm1" -Force
+        Write-Log -Message "Starting BitLocker key backup to Azure Key Vault: $KeyVaultName" -Level Information
         
-        if (-not $TenantId) {
-            Write-Log -Message "Azure Tenant ID not specified" -Level Error
-            return $false
-        }
-        
-        # Get recovery key
-        $recoveryKey = Get-BitLockerRecoveryPassword -DriveLetter $DriveLetter
-        if (-not $recoveryKey) {
-            Write-Log -Message "No BitLocker recovery key found for drive $DriveLetter" -Level Error
-            return $false
-        }
-        
-        # Connect to Azure Key Vault
-        $connected = Connect-AzureKeyVault -KeyVaultName $KeyVaultName -TenantId $TenantId -Credential $Credential
-        if (-not $connected) {
-            Write-Log -Message "Failed to connect to Azure Key Vault" -Level Error
-            return $false
-        }
-        
-        # Format secret name
-        $computerName = $env:COMPUTERNAME
-        $secretName = Format-SecretName -ComputerName $computerName -DriveLetter $DriveLetter
-        
-        # Create secret content with metadata
-        $secretContent = @{
-            RecoveryKey = $recoveryKey
-            ComputerName = $computerName
-            Drive = $DriveLetter
-            Timestamp = Get-Date -Format 'o'
-            Username = $env:USERNAME
-        } | ConvertTo-Json
-        
-        # Convert to secure string
-        $secureValue = ConvertTo-SecureString -String $secretContent -AsPlainText -Force
-        
-        # Store in Key Vault
-        $secretParams = @{
-            VaultName = $KeyVaultName
-            Name = $secretName
-            SecretValue = $secureValue
-            ContentType = 'application/json'
-            Tags = @{
-                'ComputerName' = $computerName
-                'Drive' = $DriveLetter.TrimEnd(":")
-                'Purpose' = 'BitLockerRecoveryKey'
-                'MigrationTimestamp' = (Get-Date -Format 'yyyyMMddHHmmss')
+        # Verify Key Vault connection or use provided name
+        if (-not $script:KeyVaultConnection -or $script:KeyVaultConnection.KeyVaultName -ne $KeyVaultName) {
+            Write-Log -Message "No active connection to Key Vault $KeyVaultName. Please connect first using Connect-AzureKeyVault." -Level Warning
+            return [PSCustomObject]@{
+                Success = $false
+                Message = "No active connection to Key Vault. Please connect first using Connect-AzureKeyVault."
             }
         }
         
-        $secret = Set-AzKeyVaultSecret @secretParams
+        # Get BitLocker volumes
+        $bitlockerVolumes = @()
         
-        Write-Log -Message "BitLocker recovery key for drive $DriveLetter successfully backed up to Azure Key Vault '$KeyVaultName'" -Level Information
-        return $true
+        if ($VolumeId) {
+            # Get specific volume
+            $volume = Get-BitLockerVolume -MountPoint $VolumeId -ErrorAction SilentlyContinue
+            if ($volume) {
+                $bitlockerVolumes += $volume
+            }
+            else {
+                Write-Log -Message "BitLocker volume not found for mount point: $VolumeId" -Level Warning
+                return [PSCustomObject]@{
+                    Success = $false
+                    Message = "BitLocker volume not found for mount point: $VolumeId"
+                }
+            }
+        }
+        else {
+            # Get all encrypted volumes
+            $bitlockerVolumes = Get-BitLockerVolume | Where-Object { $_.VolumeStatus -eq "FullyEncrypted" -or $_.VolumeStatus -eq "EncryptionInProgress" }
+        }
+        
+        if (-not $bitlockerVolumes -or $bitlockerVolumes.Count -eq 0) {
+            Write-Log -Message "No encrypted BitLocker volumes found" -Level Warning
+            return [PSCustomObject]@{
+                Success = $false
+                Message = "No encrypted BitLocker volumes found"
+            }
+        }
+        
+        # Prepare results
+        $results = @{
+            TotalVolumes = $bitlockerVolumes.Count
+            SuccessfulBackups = 0
+            FailedBackups = 0
+            VolumeResults = @()
+        }
+        
+        # Get computer name for metadata
+        $computerName = $env:COMPUTERNAME
+        
+        # Process each volume
+        foreach ($volume in $bitlockerVolumes) {
+            $volumeInfo = @{
+                MountPoint = $volume.MountPoint
+                VolumeType = $volume.VolumeType
+                Success = $false
+                Message = ""
+                KeyProtectorId = ""
+            }
+            
+            try {
+                # Check if volume has recovery key protectors
+                $recoveryProtectors = $volume.KeyProtector | Where-Object { $_.KeyProtectorType -eq "RecoveryPassword" }
+                
+                if (-not $recoveryProtectors -or $recoveryProtectors.Count -eq 0) {
+                    $volumeInfo.Message = "No recovery key protectors found for volume $($volume.MountPoint)"
+                    $results.FailedBackups++
+                    $results.VolumeResults += $volumeInfo
+                    Write-Log -Message $volumeInfo.Message -Level Warning
+                    continue
+                }
+                
+                # Use the first recovery protector
+                $recoveryProtector = $recoveryProtectors[0]
+                $recoveryKeyPassword = $recoveryProtector.RecoveryPassword
+                $keyProtectorId = $recoveryProtector.KeyProtectorId
+                
+                if ([string]::IsNullOrEmpty($recoveryKeyPassword)) {
+                    $volumeInfo.Message = "Recovery password is null or empty for volume $($volume.MountPoint)"
+                    $results.FailedBackups++
+                    $results.VolumeResults += $volumeInfo
+                    Write-Log -Message $volumeInfo.Message -Level Warning
+                    continue
+                }
+                
+                # Create secret name with prefix and computer name
+                $secretName = "$($SecretNamePrefix)$($computerName)-$($volume.MountPoint -replace ':', '')-$($keyProtectorId.Substring(0, 8))"
+                
+                # Create secret with metadata
+                $secretValue = ConvertTo-SecureString -String $recoveryKeyPassword -AsPlainText -Force
+                $expiryDate = (Get-Date).AddDays($SecretExpiryDays)
+                
+                # Add tags/metadata
+                $tags = @{
+                    ComputerName = $computerName
+                    MountPoint = $volume.MountPoint
+                    VolumeType = $volume.VolumeType
+                    KeyProtectorId = $keyProtectorId
+                    BackupDate = (Get-Date -Format "yyyy-MM-ddTHH:mm:ss")
+                    EncryptionMethod = $volume.EncryptionMethod
+                }
+                
+                # Set the secret in Key Vault
+                $setSecret = Set-AzKeyVaultSecret -VaultName $KeyVaultName -Name $secretName -SecretValue $secretValue -Expires $expiryDate -Tags $tags
+                
+                if ($setSecret) {
+                    $volumeInfo.Success = $true
+                    $volumeInfo.Message = "Successfully backed up recovery key for volume $($volume.MountPoint)"
+                    $volumeInfo.KeyProtectorId = $keyProtectorId
+                    $results.SuccessfulBackups++
+                    Write-Log -Message $volumeInfo.Message -Level Information
+                }
+                else {
+                    $volumeInfo.Message = "Failed to set secret in Key Vault for volume $($volume.MountPoint)"
+                    $results.FailedBackups++
+                    Write-Log -Message $volumeInfo.Message -Level Error
+                }
+            }
+            catch {
+                $volumeInfo.Message = "Error backing up recovery key for volume $($volume.MountPoint): $_"
+                $results.FailedBackups++
+                Write-Log -Message $volumeInfo.Message -Level Error
+            }
+            
+            $results.VolumeResults += $volumeInfo
+        }
+        
+        # Log summary
+        $summaryMessage = "BitLocker key backup to Key Vault completed. Successful: $($results.SuccessfulBackups), Failed: $($results.FailedBackups), Total: $($results.TotalVolumes)"
+        Write-Log -Message $summaryMessage -Level Information
+        
+        return [PSCustomObject]@{
+            Success = ($results.FailedBackups -eq 0 -and $results.SuccessfulBackups -gt 0)
+            Message = $summaryMessage
+            TotalVolumes = $results.TotalVolumes
+            SuccessfulBackups = $results.SuccessfulBackups
+            FailedBackups = $results.FailedBackups
+            VolumeResults = $results.VolumeResults
+        }
     }
     catch {
-        Write-Log -Message "Error backing up BitLocker key to Azure Key Vault: $_" -Level Error
-        return $false
+        Write-Log -Message "Error in Backup-BitLockerKeyToKeyVault: $_" -Level Error
+        
+        return [PSCustomObject]@{
+            Success = $false
+            Message = "Error backing up BitLocker keys to Key Vault: $_"
+        }
     }
 }
 
@@ -652,67 +936,181 @@ function Backup-BitLockerKeyToKeyVault {
     System.String. The BitLocker recovery key.
 #>
 function Get-BitLockerKeyFromKeyVault {
+    <#
+    .SYNOPSIS
+        Retrieves BitLocker recovery keys from Azure Key Vault.
+    .DESCRIPTION
+        This function retrieves BitLocker recovery keys from Azure Key Vault based on
+        computer name, volume ID, or key protector ID.
+    .PARAMETER KeyVaultName
+        The name of the Azure Key Vault to retrieve the keys from.
+    .PARAMETER ComputerName
+        The name of the computer to retrieve keys for.
+    .PARAMETER VolumeId
+        Optional volume ID to retrieve only specific volume's key.
+    .PARAMETER KeyProtectorId
+        Optional key protector ID to retrieve a specific key.
+    .EXAMPLE
+        Get-BitLockerKeyFromKeyVault -KeyVaultName "CompanyKeyVault" -ComputerName "DESKTOP-123456"
+    .EXAMPLE
+        Get-BitLockerKeyFromKeyVault -KeyVaultName "CompanyKeyVault" -ComputerName "DESKTOP-123456" -VolumeId "C:"
+    .OUTPUTS
+        PSObject with retrieval operation status and results.
+    #>
     [CmdletBinding()]
-    [OutputType([string])]
     param (
-        [Parameter(Mandatory = $false)]
-        [string]$DriveLetter = "C:",
+        [Parameter(Mandatory = $true)]
+        [string]$KeyVaultName,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$ComputerName,
         
         [Parameter(Mandatory = $false)]
-        [string]$ComputerName = $env:COMPUTERNAME,
+        [string]$VolumeId,
         
         [Parameter(Mandatory = $false)]
-        [string]$KeyVaultName = $script:BitLockerConfig.AzureKeyVaultName,
-        
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]$Credential,
-        
-        [Parameter(Mandatory = $false)]
-        [string]$TenantId = $script:BitLockerConfig.AzureTenantId
+        [string]$KeyProtectorId
     )
     
     try {
-        # Validate parameters
-        if (-not $KeyVaultName) {
-            Write-Log -Message "Azure Key Vault name not specified" -Level Error
-            return $null
+        # Import the logging module
+        Import-Module -Name "$PSScriptRoot\LoggingModule.psm1" -Force
+        Write-Log -Message "Retrieving BitLocker keys from Azure Key Vault: $KeyVaultName" -Level Information
+        
+        # Verify Key Vault connection or use provided name
+        if (-not $script:KeyVaultConnection -or $script:KeyVaultConnection.KeyVaultName -ne $KeyVaultName) {
+            Write-Log -Message "No active connection to Key Vault $KeyVaultName. Please connect first using Connect-AzureKeyVault." -Level Warning
+            return [PSCustomObject]@{
+                Success = $false
+                Message = "No active connection to Key Vault. Please connect first using Connect-AzureKeyVault."
+            }
         }
         
-        if (-not $TenantId) {
-            Write-Log -Message "Azure Tenant ID not specified" -Level Error
-            return $null
+        # Get all secrets with BitLocker- prefix
+        $secrets = Get-AzKeyVaultSecret -VaultName $KeyVaultName | Where-Object { $_.Name -like "BitLocker-*" }
+        
+        if (-not $secrets -or $secrets.Count -eq 0) {
+            Write-Log -Message "No BitLocker keys found in Key Vault: $KeyVaultName" -Level Warning
+            return [PSCustomObject]@{
+                Success = $false
+                Message = "No BitLocker keys found in Key Vault"
+            }
         }
         
-        # Connect to Azure Key Vault
-        $connected = Connect-AzureKeyVault -KeyVaultName $KeyVaultName -TenantId $TenantId -Credential $Credential
-        if (-not $connected) {
-            Write-Log -Message "Failed to connect to Azure Key Vault" -Level Error
-            return $null
+        # Filter secrets by computer name
+        $computerSecrets = $secrets | Where-Object { 
+            $secret = Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name $_.Name
+            $secret.Tags.ComputerName -eq $ComputerName 
         }
         
-        # Format secret name
-        $secretName = Format-SecretName -ComputerName $ComputerName -DriveLetter $DriveLetter
-        
-        # Get secret from Key Vault
-        $secret = Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name $secretName -ErrorAction SilentlyContinue
-        
-        if (-not $secret) {
-            Write-Log -Message "BitLocker recovery key not found in Key Vault for $ComputerName drive $DriveLetter" -Level Warning
-            return $null
+        if (-not $computerSecrets -or $computerSecrets.Count -eq 0) {
+            Write-Log -Message "No BitLocker keys found for computer: $ComputerName" -Level Warning
+            return [PSCustomObject]@{
+                Success = $false
+                Message = "No BitLocker keys found for computer: $ComputerName"
+            }
         }
         
-        # Convert from secure string
-        $secretValueText = $secret.SecretValue | ConvertFrom-SecureString -AsPlainText
+        # Filter by volume if specified
+        if ($VolumeId) {
+            $volumeSecrets = $computerSecrets | Where-Object { 
+                $secret = Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name $_.Name
+                $secret.Tags.MountPoint -eq $VolumeId 
+            }
+            
+            if (-not $volumeSecrets -or $volumeSecrets.Count -eq 0) {
+                Write-Log -Message "No BitLocker keys found for volume: $VolumeId on computer: $ComputerName" -Level Warning
+                return [PSCustomObject]@{
+                    Success = $false
+                    Message = "No BitLocker keys found for volume: $VolumeId on computer: $ComputerName"
+                }
+            }
+            
+            $computerSecrets = $volumeSecrets
+        }
         
-        # Parse JSON content
-        $secretContent = $secretValueText | ConvertFrom-Json
+        # Filter by key protector ID if specified
+        if ($KeyProtectorId) {
+            $protectorSecrets = $computerSecrets | Where-Object { 
+                $secret = Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name $_.Name
+                $secret.Tags.KeyProtectorId -eq $KeyProtectorId 
+            }
+            
+            if (-not $protectorSecrets -or $protectorSecrets.Count -eq 0) {
+                Write-Log -Message "No BitLocker keys found for key protector ID: $KeyProtectorId" -Level Warning
+                return [PSCustomObject]@{
+                    Success = $false
+                    Message = "No BitLocker keys found for key protector ID: $KeyProtectorId"
+                }
+            }
+            
+            $computerSecrets = $protectorSecrets
+        }
         
-        Write-Log -Message "Successfully retrieved BitLocker recovery key from Key Vault for $ComputerName drive $DriveLetter" -Level Information
-        return $secretContent.RecoveryKey
+        # Prepare results
+        $results = @{
+            TotalKeys = $computerSecrets.Count
+            Keys = @()
+        }
+        
+        # Process each secret
+        foreach ($secretInfo in $computerSecrets) {
+            try {
+                $secret = Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name $secretInfo.Name
+                
+                # Check if secret has expired
+                $isExpired = $false
+                if ($secret.Expires -and $secret.Expires -lt (Get-Date)) {
+                    $isExpired = $true
+                    Write-Log -Message "BitLocker key $($secretInfo.Name) has expired on $($secret.Expires)" -Level Warning
+                }
+                
+                # Get secret value (recovery key)
+                $secretValueText = ''
+                if (-not $isExpired) {
+                    $secretValue = $secret.SecretValue
+                    $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($secretValue)
+                    $secretValueText = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
+                    [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+                }
+                
+                # Create result object for this key
+                $keyResult = [PSCustomObject]@{
+                    Name = $secretInfo.Name
+                    MountPoint = $secret.Tags.MountPoint
+                    ComputerName = $secret.Tags.ComputerName
+                    KeyProtectorId = $secret.Tags.KeyProtectorId
+                    BackupDate = $secret.Tags.BackupDate
+                    RecoveryKey = if ($isExpired) { "EXPIRED" } else { $secretValueText }
+                    IsExpired = $isExpired
+                    Expires = $secret.Expires
+                }
+                
+                $results.Keys += $keyResult
+            }
+            catch {
+                Write-Log -Message "Error retrieving secret $($secretInfo.Name): $_" -Level Error
+            }
+        }
+        
+        # Log summary
+        $summaryMessage = "Retrieved $($results.TotalKeys) BitLocker keys from Key Vault for computer: $ComputerName"
+        Write-Log -Message $summaryMessage -Level Information
+        
+        return [PSCustomObject]@{
+            Success = ($results.TotalKeys -gt 0)
+            Message = $summaryMessage
+            TotalKeys = $results.TotalKeys
+            Keys = $results.Keys
+        }
     }
     catch {
-        Write-Log -Message "Error retrieving BitLocker key from Azure Key Vault: $_" -Level Error
-        return $null
+        Write-Log -Message "Error in Get-BitLockerKeyFromKeyVault: $_" -Level Error
+        
+        return [PSCustomObject]@{
+            Success = $false
+            Message = "Error retrieving BitLocker keys from Key Vault: $_"
+        }
     }
 }
 
