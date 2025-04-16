@@ -1,3 +1,4 @@
+#Requires -Version 5.1
 ################################################################################################################################
 # Written by Jared Griego | Crayon | 4.16.2025 | Rev 1.0 | jared.griego@crayon.com                                              #
 #                                                                                                                              #
@@ -16,6 +17,8 @@
 #      ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═══╝     ╚═════╝ ╚══════╝╚═╝  ╚═╝                                       #
 #                                                                                                                              #
 ################################################################################################################################
+
+<#
 .DESCRIPTION
     Automates the testing of PowerShell scripts and provides a GUI wizard for Workspace One
     enrollment with Intune integration when automated methods fail.
@@ -27,7 +30,6 @@
     .\Invoke-WorkspaceOneSetup.ps1
 #>
 
-#Requires -Version 5.1
 [CmdletBinding()]
 param(
     [Parameter()]
@@ -43,7 +45,7 @@ param(
     [switch]$UseEnvFile,
     
     [Parameter(Mandatory = $false)]
-    [string]$EnvFilePath = "./.env",
+    [string]$EnvFilePath = ".env",
     
     [Parameter(Mandatory = $false)]
     [switch]$UseKeyVault,
@@ -61,7 +63,7 @@ param(
     [switch]$NoReboot,
     
     [Parameter(Mandatory = $false)]
-    [string]$SettingsPath = "./config/settings.json"
+    [string]$SettingsPath = ".\config\settings.json"
 )
 
 # Define script paths at the beginning of the script

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="400" height="300" xmlns="http://www.w3.org/2000/svg">
+  <!-- Login box background -->
+  <rect x="0" y="0" width="400" height="300" rx="8" ry="8" fill="white" stroke="#DDDDDD" stroke-width="1" />
+  
+  <!-- Microsoft logo -->
+  <rect x="170" y="25" width="60" height="60" fill="#F25022" />
+  <rect x="170" y="25" width="28" height="28" fill="#F25022" />
+  <rect x="202" y="25" width="28" height="28" fill="#7FBA00" />
+  <rect x="170" y="57" width="28" height="28" fill="#00A4EF" />
+  <rect x="202" y="57" width="28" height="28" fill="#FFB900" />
+  
+  <!-- Login form -->
+  <text x="200" y="110" font-family="Segoe UI" font-size="16" text-anchor="middle" fill="#333333">Sign in</text>
+  <text x="200" y="130" font-family="Segoe UI" font-size="14" text-anchor="middle" fill="#333333">to continue to Microsoft Intune</text>
+  
+  <!-- Email input field -->
+  <rect x="80" y="160" width="240" height="36" rx="2" ry="2" fill="white" stroke="#DDDDDD" stroke-width="1" />
+  <text x="90" y="182" font-family="Segoe UI" font-size="14" fill="#666666">user@company.com</text>
+  
+  <!-- Next button -->
+  <rect x="80" y="210" width="240" height="36" rx="2" ry="2" fill="#0078D4" />
+  <text x="200" y="233" font-family="Segoe UI" font-size="14" text-anchor="middle" fill="white">Next</text>
+  
+  <!-- Sign-in options -->
+  <text x="200" y="275" font-family="Segoe UI" font-size="12" text-anchor="middle" fill="#0078D4">Sign-in options</text>
+</svg> 

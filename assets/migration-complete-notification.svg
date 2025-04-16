@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="400" height="140" xmlns="http://www.w3.org/2000/svg">
+  <!-- Notification background -->
+  <rect x="0" y="0" width="400" height="140" rx="8" ry="8" fill="#2D2D2D" />
+  
+  <!-- App logo with success indicator -->
+  <rect x="15" y="15" width="32" height="32" rx="4" ry="4" fill="#0078D4" />
+  <circle cx="31" cy="31" r="12" fill="#107C10" />
+  <path d="M25 31 L29 35 L37 27" stroke="white" stroke-width="2" fill="none" />
+  
+  <!-- Notification content -->
+  <text x="60" y="30" font-family="Segoe UI" font-weight="bold" font-size="14" fill="white">Migration Complete</text>
+  <text x="60" y="55" font-family="Segoe UI" font-size="12" fill="#E0E0E0">Your device has been successfully migrated to Microsoft</text>
+  <text x="60" y="75" font-family="Segoe UI" font-size="12" fill="#E0E0E0">Intune. All your applications and data are available.</text>
+  
+  <!-- Action buttons -->
+  <rect x="60" y="90" width="120" height="30" rx="2" ry="2" fill="#0078D4" />
+  <text x="120" y="110" font-family="Segoe UI" font-size="12" text-anchor="middle" fill="white">Get Started</text>
+  
+  <rect x="190" y="90" width="100" height="30" rx="2" ry="2" fill="#333333" stroke="#555555" stroke-width="1" />
+  <text x="240" y="110" font-family="Segoe UI" font-size="12" text-anchor="middle" fill="white">Dismiss</text>
+  
+  <!-- Timestamp -->
+  <text x="385" y="130" font-family="Segoe UI" font-size="10" text-anchor="end" fill="#A0A0A0">Just now</text>
+</svg> 

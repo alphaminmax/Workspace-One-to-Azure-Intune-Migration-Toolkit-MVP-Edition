@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="400" height="120" xmlns="http://www.w3.org/2000/svg">
+  <!-- Notification background -->
+  <rect x="0" y="0" width="400" height="120" rx="8" ry="8" fill="#2D2D2D" />
+  
+  <!-- App logo -->
+  <rect x="15" y="15" width="32" height="32" rx="4" ry="4" fill="#0078D4" />
+  <text x="31" y="38" font-family="Segoe UI" font-size="20" text-anchor="middle" fill="white">M</text>
+  
+  <!-- Notification content -->
+  <text x="60" y="30" font-family="Segoe UI" font-weight="bold" font-size="14" fill="white">Migration Process Starting</text>
+  <text x="60" y="55" font-family="Segoe UI" font-size="12" fill="#E0E0E0">Your device migration to Microsoft Intune will begin in</text>
+  <text x="60" y="75" font-family="Segoe UI" font-size="12" fill="#E0E0E0">5 minutes. Please save your work and keep your device</text>
+  <text x="60" y="95" font-family="Segoe UI" font-size="12" fill="#E0E0E0">powered on and connected to the network.</text>
+  
+  <!-- Timestamp -->
+  <text x="385" y="110" font-family="Segoe UI" font-size="10" text-anchor="end" fill="#A0A0A0">Just now</text>
+</svg> 

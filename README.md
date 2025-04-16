@@ -1,3 +1,5 @@
+![Crayon Logo](./assests/img/Crayon-Logo-RGB-Negative.svg)
+
 # Workspace One to Azure/Intune Migration Toolkit - MVP Edition
 
 A streamlined PowerShell-based solution for migrating devices from VMware Workspace One to Microsoft Intune/Azure AD. This MVP (Minimum Viable Product) edition focuses on core migration functionality without enterprise overhead.
@@ -589,6 +591,7 @@ The migration toolkit includes comprehensive documentation:
 - [User Communication Framework](docs/UserCommunicationFramework.md) - User notification and feedback
 - [Email Notification System](docs/Email-Notification-System.md) - Email templates and delivery mechanisms
 - [Migration Reporting](docs/Migration-Reporting.md) - Comprehensive reporting capabilities
+- [Environment Configuration](docs/Environment-Configuration.md) - Secure management of credentials and settings
 
 ### Enhanced Reporting
 
