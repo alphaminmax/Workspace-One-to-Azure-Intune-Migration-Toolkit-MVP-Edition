@@ -1,0 +1,13 @@
+%%{init: {'theme': 'default', 'themeVariables': { 'primaryColor': '#007acc', 'fontSize': '14px'}}}%%
+flowchart TD
+A[Start Migration] --> B[Validate Environment]
+B --> C[Create Backup/Rollback Points]
+C --> D[Migrate Device]
+D --> E[Migrate BitLocker]
+E --> F[Migrate Applications]
+F --> G[Verify Migration]
+G --> H{Migration Successful?}
+H -->|Yes| I[Migration Complete]
+H -->|No| J[Roll Back Changes]
+J --> K[Analyze Failure]
+K --> L[Retry or Report] 

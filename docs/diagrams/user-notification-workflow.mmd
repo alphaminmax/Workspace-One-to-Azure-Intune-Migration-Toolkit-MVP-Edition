@@ -1,0 +1,15 @@
+%%{init: {'theme': 'default', 'themeVariables': { 'primaryColor': '#007acc', 'fontSize': '14px'}}}%%
+flowchart TD
+A[Migration Scheduled] --> B[Send Initial Notification]
+B --> C[Show Pre-Migration Guide]
+C --> D[Start Migration Process]
+D --> E[Update Progress on Lock Screen]
+D --> F[Send Email Updates]
+D --> G[Push Toast Notifications]
+E & F & G --> H[Migration Complete]
+H --> I[Send Completion Notification]
+I --> J[Collect User Feedback]
+J --> K[Record in Analytics]
+H -->|Error Occurred| L[Send Error Notification]
+L --> M[Display Guidance]
+M --> N[Log Support Ticket] 

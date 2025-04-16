@@ -9,24 +9,25 @@ The BitLockerManager module provides comprehensive functionality for managing Bi
 The following diagram illustrates the BitLocker migration workflow:
 
 ```mermaid
+%%{init: {'theme': 'default', 'themeVariables': { 'primaryColor': '#5a7c9d', 'fontSize': '14px'}}}%%
 flowchart TD
-    A[Start BitLocker Migration] --> B[Check BitLocker Status]
-    B --> C{Is BitLocker Enabled?}
-    C -->|Yes| D[Backup Recovery Keys]
-    C -->|No| E{Enable BitLocker?}
-    E -->|Yes| F[Enable BitLocker]
-    E -->|No| G[Skip BitLocker Migration]
-    F --> D
-    D --> H{Backup Type}
-    H -->|Local| I[Backup to File]
-    H -->|AzureAD| J[Backup to Azure AD]
-    H -->|KeyVault| K[Backup to Key Vault]
-    I --> L[Verify Backup]
-    J --> L
-    K --> L
-    L --> M[Apply Intune BitLocker Policy]
-    M --> N[BitLocker Migration Complete]
-    G --> O[End Process]
+A[Start BitLocker Migration] --> B[Check BitLocker Status]
+B --> C{Is BitLocker Enabled?}
+C -->|Yes| D[Backup Recovery Keys]
+C -->|No| E{Enable BitLocker?}
+E -->|Yes| F[Enable BitLocker]
+E -->|No| G[Skip BitLocker Migration]
+F --> D
+D --> H{Backup Type}
+H -->|Local| I[Backup to File]
+H -->|AzureAD| J[Backup to Azure AD]
+H -->|KeyVault| K[Backup to Key Vault]
+I --> L[Verify Backup]
+J --> L
+K --> L
+L --> M[Apply Intune BitLocker Policy]
+M --> N[BitLocker Migration Complete]
+G --> O[End Process]
 ```
 
 ## Key Features

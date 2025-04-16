@@ -1,0 +1,14 @@
+%%{init: {'theme': 'default', 'themeVariables': { 'primaryColor': '#007acc', 'fontSize': '14px'}}}%%
+flowchart TD
+A[Check BitLocker Status] --> B{BitLocker Enabled?}
+B -->|Yes| C[Backup BitLocker Keys]
+B -->|No| D[Enable BitLocker]
+D --> E[Wait for Encryption]
+E --> C
+C --> F[Migrate BitLocker to Azure AD]
+F --> G[Verify Key Backup]
+G --> H{Keys Successfully Backed Up?}
+H -->|Yes| I[BitLocker Migration Complete]
+H -->|No| J[Manual Key Backup Required]
+J --> K[Log Warning]
+K --> L[Continue Migration with Warning] 

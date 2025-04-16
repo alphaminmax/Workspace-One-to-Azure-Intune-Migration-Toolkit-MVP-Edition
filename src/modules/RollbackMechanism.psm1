@@ -415,15 +415,15 @@ function Restore-WorkspaceOneMigration {
         
         # Restore registry keys in reverse order
         if (-not $SkipRegistryRestore) {
-            Write-Log -Message "Restoring registry keys..." -Level Information
-            $registryBackups = $script:BackupItems | Where-Object { $_.Type -eq "Registry" }
+        Write-Log -Message "Restoring registry keys..." -Level Information
+        $registryBackups = $script:BackupItems | Where-Object { $_.Type -eq "Registry" }
             
             # Sort registry backups to ensure consistent restore order
             $registryBackups = $registryBackups | Sort-Object -Property { $_.Path.Length } -Descending
             
-            foreach ($backup in $registryBackups) {
-                try {
-                    if (Test-Path -Path $backup.BackupFile) {
+        foreach ($backup in $registryBackups) {
+            try {
+                if (Test-Path -Path $backup.BackupFile) {
                         # Check if the registry key path exists before restore
                         $keyPath = $backup.Path
                         $keyExists = $false
@@ -454,9 +454,9 @@ function Restore-WorkspaceOneMigration {
                         }
                         
                         # Try to restore from backup
-                        & reg.exe import "$($backup.BackupFile)" | Out-Null
-                        if ($LASTEXITCODE -eq 0) {
-                            Write-Log -Message "Successfully restored registry key from: $($backup.BackupFile)" -Level Information
+                    & reg.exe import "$($backup.BackupFile)" | Out-Null
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-Log -Message "Successfully restored registry key from: $($backup.BackupFile)" -Level Information
                             
                             # If temporary backup was created, keep it for safety
                             if ($tempBackupPath -and (Test-Path -Path $tempBackupPath)) {
@@ -464,38 +464,38 @@ function Restore-WorkspaceOneMigration {
                                 Move-Item -Path $tempBackupPath -Destination $safetyPath -Force
                                 Write-Log -Message "Previous registry state saved to: $safetyPath" -Level Information
                             }
-                        } else {
-                            $rollbackSuccess = $false
-                            Write-Log -Message "Failed to restore registry key from: $($backup.BackupFile). Exit code: $LASTEXITCODE" -Level Error
+                    } else {
+                        $rollbackSuccess = $false
+                        Write-Log -Message "Failed to restore registry key from: $($backup.BackupFile). Exit code: $LASTEXITCODE" -Level Error
                             
                             # Try to restore previous state if we have it
                             if ($tempBackupPath -and (Test-Path -Path $tempBackupPath)) {
                                 & reg.exe import "$tempBackupPath" | Out-Null
                                 Remove-Item -Path $tempBackupPath -Force -ErrorAction SilentlyContinue
                             }
-                        }
-                    } else {
-                        $rollbackSuccess = $false
-                        Write-Log -Message "Registry backup file not found: $($backup.BackupFile)" -Level Error
                     }
-                } catch {
+                } else {
                     $rollbackSuccess = $false
-                    Write-Log -Message "Error restoring registry key: $_" -Level Error
+                    Write-Log -Message "Registry backup file not found: $($backup.BackupFile)" -Level Error
+                }
+            } catch {
+                $rollbackSuccess = $false
+                Write-Log -Message "Error restoring registry key: $_" -Level Error
                 }
             }
         }
         
         # Restore folders
         if (-not $SkipFileRestore) {
-            Write-Log -Message "Restoring backed up folders..." -Level Information
-            $folderBackups = $script:BackupItems | Where-Object { $_.Type -eq "Folder" }
-            foreach ($backup in $folderBackups) {
-                try {
-                    if (Test-Path -Path $backup.BackupFile) {
-                        if (Test-Path -Path $backup.Path) {
-                            # Rename existing folder as a precaution
-                            $timestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
-                            $renamedPath = "$($backup.Path)_MigrationFailed_$timestamp"
+        Write-Log -Message "Restoring backed up folders..." -Level Information
+        $folderBackups = $script:BackupItems | Where-Object { $_.Type -eq "Folder" }
+        foreach ($backup in $folderBackups) {
+            try {
+                if (Test-Path -Path $backup.BackupFile) {
+                    if (Test-Path -Path $backup.Path) {
+                        # Rename existing folder as a precaution
+                        $timestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
+                        $renamedPath = "$($backup.Path)_MigrationFailed_$timestamp"
                             
                             # Rename with robocopy for safety (handles in-use files better)
                             $robocopyLogPath = Join-Path -Path $env:TEMP -ChildPath "RobocopyRename_$timestamp.log"
@@ -512,7 +512,7 @@ function Restore-WorkspaceOneMigration {
                                 Write-Log -Message "Successfully renamed existing folder to $renamedPath" -Level Information
                             } else {
                                 # Fallback to rename
-                                Rename-Item -Path $backup.Path -NewName $renamedPath -Force -ErrorAction SilentlyContinue
+                        Rename-Item -Path $backup.Path -NewName $renamedPath -Force -ErrorAction SilentlyContinue
                             }
                         }
                         
@@ -528,30 +528,30 @@ function Restore-WorkspaceOneMigration {
                         Start-Process -FilePath "robocopy.exe" -ArgumentList $robocopyParams -Wait -NoNewWindow
                         
                         if (Test-Path -Path $backup.Path) {
-                            Write-Log -Message "Successfully restored folder from: $($backup.BackupFile)" -Level Information
+                    Write-Log -Message "Successfully restored folder from: $($backup.BackupFile)" -Level Information
                         } else {
                             # Fallback to Copy-Item
                             New-Item -Path $backup.Path -ItemType Directory -Force -ErrorAction SilentlyContinue | Out-Null
                             Copy-Item -Path "$($backup.BackupFile)\*" -Destination $backup.Path -Recurse -Force -ErrorAction Stop
                             Write-Log -Message "Successfully restored folder from: $($backup.BackupFile) using Copy-Item" -Level Information
                         }
-                    } else {
-                        $rollbackSuccess = $false
-                        Write-Log -Message "Folder backup not found: $($backup.BackupFile)" -Level Error
-                    }
-                } catch {
+                } else {
                     $rollbackSuccess = $false
-                    Write-Log -Message "Error restoring folder: $_" -Level Error
+                    Write-Log -Message "Folder backup not found: $($backup.BackupFile)" -Level Error
+                }
+            } catch {
+                $rollbackSuccess = $false
+                Write-Log -Message "Error restoring folder: $_" -Level Error
                 }
             }
         }
         
         # Restore services
         if (-not $SkipServiceRestore) {
-            # Reset Workspace ONE MDM service if it exists
-            $mdmService = Get-Service -Name "AirWatchMDMService" -ErrorAction SilentlyContinue
-            if ($null -ne $mdmService) {
-                try {
+        # Reset Workspace ONE MDM service if it exists
+        $mdmService = Get-Service -Name "AirWatchMDMService" -ErrorAction SilentlyContinue
+        if ($null -ne $mdmService) {
+            try {
                     # Check service startup type
                     $serviceInfo = Get-WmiObject -Class Win32_Service -Filter "Name='AirWatchMDMService'"
                     $startupType = $serviceInfo.StartMode
@@ -565,10 +565,10 @@ function Restore-WorkspaceOneMigration {
                     # Start the service
                     Start-Service -Name "AirWatchMDMService" -ErrorAction Stop
                     Write-Log -Message "AirWatch MDM Service started successfully" -Level Information
-                } catch {
+            } catch {
                     $rollbackSuccess = $false
-                    Write-Log -Message "Failed to restart AirWatch MDM Service: $_" -Level Warning
-                }
+                Write-Log -Message "Failed to restart AirWatch MDM Service: $_" -Level Warning
+            }
             }
             
             # Check and restore other Workspace ONE related services

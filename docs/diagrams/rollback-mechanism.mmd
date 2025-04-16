@@ -1,0 +1,16 @@
+%%{init: {'theme': 'default', 'themeVariables': { 'primaryColor': '#0078d4', 'fontSize': '14px'}}}%%
+flowchart TD
+    A[Start Migration Process] --> B[Create Backup Point]
+    B --> C[Execute Migration Steps]
+    C --> D{Migration Successful?}
+    D -->|Yes| E[Verify Results]
+    D -->|No| F[Initiate Rollback]
+    E -->|Verification OK| G[Log Success]
+    E -->|Verification Failed| F
+    F --> H[Restore from Backup]
+    H --> I{Restore Successful?}
+    I -->|Yes| J[Notify Admin: Rollback Complete]
+    I -->|No| K[Alert: Critical Restore Failure]
+    G --> L[End: Migration Complete]
+    J --> M[End: Returned to Initial State]
+    K --> N[End: Manual Intervention Required] 

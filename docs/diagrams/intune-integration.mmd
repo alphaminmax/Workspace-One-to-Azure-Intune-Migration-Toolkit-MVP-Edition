@@ -1,0 +1,20 @@
+%%{init: {'theme': 'default', 'themeVariables': { 'primaryColor': '#0078d4', 'fontSize': '14px'}}}%%
+flowchart TD
+    A[Start Intune Integration] --> B[Authenticate to Graph API]
+    B --> C{Authentication Successful?}
+    C -->|No| D[Retry Authentication]
+    D --> C
+    C -->|Yes| E[Query Device Inventory]
+    E --> F[Fetch Configuration Profiles]
+    F --> G[Analyze Current State]
+    G --> H[Apply Migration Policy]
+    H --> I{Deployment Successful?}
+    I -->|No| J[Log Error]
+    J --> K[Rollback Changes]
+    I -->|Yes| L[Verify Compliance]
+    L --> M{Device Compliant?}
+    M -->|No| N[Remediate Issues]
+    N --> L
+    M -->|Yes| O[Log Success]
+    O --> P[End: Device Managed by Intune]
+    K --> Q[End: Rollback Complete] 
