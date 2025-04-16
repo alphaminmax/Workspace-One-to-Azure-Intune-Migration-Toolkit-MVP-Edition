@@ -1,6 +1,21 @@
-<# TEST-MIGRATIONCONNECTIVITY.PS1
-.SYNOPSIS
-    Tests connectivity to Workspace One and Azure environments as part of migration preparation.
+################################################################################################################################
+# Written by Jared Griego | Crayon | 4.16.2025 | Rev 1.0 | jared.griego@crayon.com                                              #
+#                                                                                                                              #
+# This script tests network connectivity, authentication, and API access to both                                        #
+# PowerShell 5.1 x32/x64                                                                                                       #
+#                                                                                                                              #
+################################################################################################################################
+
+################################################################################################################################
+#                                                                                                                              #
+#      ██████╗██████╗  █████╗ ██╗   ██╗ ██████╗ ███╗   ██╗    ██╗   ██╗███████╗ █████╗                                        #
+#     ██╔════╝██╔══██╗██╔══██╗╚██╗ ██╔╝██╔═══██╗████╗  ██║    ██║   ██║██╔════╝██╔══██╗                                       #
+#     ██║     ██████╔╝███████║ ╚████╔╝ ██║   ██║██╔██╗ ██║    ██║   ██║███████╗███████║                                       #
+#     ██║     ██╔══██╗██╔══██║  ╚██╔╝  ██║   ██║██║╚██╗██║    ██║   ██║╚════██║██╔══██║                                       #
+#     ╚██████╗██║  ██║██║  ██║   ██║   ╚██████╔╝██║ ╚████║    ╚██████╔╝███████║██║  ██║                                       #
+#      ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═══╝     ╚═════╝ ╚══════╝╚═╝  ╚═╝                                       #
+#                                                                                                                              #
+################################################################################################################################
 .DESCRIPTION
     This script tests network connectivity, authentication, and API access to both 
     Workspace One and Azure environments to ensure all prerequisites are met before 
@@ -998,3 +1013,8 @@ if ($reportPath) {
 }
 
 Write-LogMessage -Message "===== Migration Connectivity Test Completed =====" -Level INFO 
+
+
+
+
+

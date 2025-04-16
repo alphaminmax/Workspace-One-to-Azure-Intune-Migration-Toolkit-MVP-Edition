@@ -1,6 +1,21 @@
-<# WORKSPACEONEWIZARD.PSM1
-.SYNOPSIS
-    GUI Wizard for Workspace One enrollment with Intune integration in Windows 10/11.
+################################################################################################################################
+# Written by Jared Griego | Crayon | 4.16.2025 | Rev 1.0 | jared.griego@crayon.com                                              #
+#                                                                                                                              #
+# Provides a user-friendly GUI wizard for end users to complete Workspace One enrollment                                #
+# PowerShell 5.1 x32/x64                                                                                                       #
+#                                                                                                                              #
+################################################################################################################################
+
+################################################################################################################################
+#                                                                                                                              #
+#      ██████╗██████╗  █████╗ ██╗   ██╗ ██████╗ ███╗   ██╗    ██╗   ██╗███████╗ █████╗                                        #
+#     ██╔════╝██╔══██╗██╔══██╗╚██╗ ██╔╝██╔═══██╗████╗  ██║    ██║   ██║██╔════╝██╔══██╗                                       #
+#     ██║     ██████╔╝███████║ ╚████╔╝ ██║   ██║██╔██╗ ██║    ██║   ██║███████╗███████║                                       #
+#     ██║     ██╔══██╗██╔══██║  ╚██╔╝  ██║   ██║██║╚██╗██║    ██║   ██║╚════██║██╔══██║                                       #
+#     ╚██████╗██║  ██║██║  ██║   ██║   ╚██████╔╝██║ ╚████║    ╚██████╔╝███████║██║  ██║                                       #
+#      ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═══╝     ╚═════╝ ╚══════╝╚═╝  ╚═╝                                       #
+#                                                                                                                              #
+################################################################################################################################
 .DESCRIPTION
     Provides a user-friendly GUI wizard for end users to complete Workspace One enrollment
     when automated methods via GPO or endpoint management have failed.
@@ -734,3 +749,8 @@ function Show-EnrollmentWizard {
 
 # Export the functions
 Export-ModuleMember -Function Show-EnrollmentWizard, Test-EnrollmentPrerequisites, Import-WS1Config 
+
+
+
+
+

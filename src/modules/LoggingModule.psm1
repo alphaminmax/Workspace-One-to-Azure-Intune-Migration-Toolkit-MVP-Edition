@@ -1,6 +1,21 @@
-<# LOGGINGMODULE.PSM1
-.SYNOPSIS
-Provides enhanced logging capabilities for the migration scripts.
+################################################################################################################################
+# Written by Jared Griego | Crayon | 4.16.2025 | Rev 1.0 | jared.griego@crayon.com                                              #
+#                                                                                                                              #
+# This module provides standardized logging functions that can be used across all scripts in...                            #
+# PowerShell 5.1 x32/x64                                                                                                       #
+#                                                                                                                              #
+################################################################################################################################
+
+################################################################################################################################
+#                                                                                                                              #
+#      ██████╗██████╗  █████╗ ██╗   ██╗ ██████╗ ███╗   ██╗    ██╗   ██╗███████╗ █████╗                                        #
+#     ██╔════╝██╔══██╗██╔══██╗╚██╗ ██╔╝██╔═══██╗████╗  ██║    ██║   ██║██╔════╝██╔══██╗                                       #
+#     ██║     ██████╔╝███████║ ╚████╔╝ ██║   ██║██╔██╗ ██║    ██║   ██║███████╗███████║                                       #
+#     ██║     ██╔══██╗██╔══██║  ╚██╔╝  ██║   ██║██║╚██╗██║    ██║   ██║╚════██║██╔══██║                                       #
+#     ╚██████╗██║  ██║██║  ██║   ██║   ╚██████╔╝██║ ╚████║    ╚██████╔╝███████║██║  ██║                                       #
+#      ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═══╝     ╚═════╝ ╚══════╝╚═╝  ╚═╝                                       #
+#                                                                                                                              #
+################################################################################################################################
 .DESCRIPTION
 This module provides standardized logging functions that can be used across all scripts in the project.
 .EXAMPLE
@@ -302,3 +317,8 @@ function Complete-LogTask {
 
 # Export all functions
 Export-ModuleMember -Function Initialize-Logging, Write-LogMessage, Get-LoggingLevel, Set-LoggingLevel, Write-SystemInfo, Start-LogTask, Complete-LogTask 
+
+
+
+
+

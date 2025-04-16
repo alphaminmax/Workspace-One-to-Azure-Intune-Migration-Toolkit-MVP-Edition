@@ -1,23 +1,21 @@
 ################################################################################################################################
-# Written by Jared Griego | Crayon | 4.15.2025 | Rev 1.0 |jared.griego@crayon.com                                              #
+# Written by Jared Griego | Crayon | 4.16.2025 | Rev 1.0 | jared.griego@crayon.com                                              #
 #                                                                                                                              #
-# Azure PowerShell Script to allow migration from Workspace One to Azure Intune via Auto-enrollment                            #
+# Module for handling user profile migration during Workspace One to Azure/Intune migration.                            #
 # PowerShell 5.1 x32/x64                                                                                                       #
 #                                                                                                                              #
 ################################################################################################################################
 
 ################################################################################################################################
-#     ______ .______          ___   ____    ____  ______   .__   __.     __    __       _______.     ___                       #
-#    /      ||   _  \        /   \  \   \  /   / /  __  \  |  \ |  |    |  |  |  |     /       |    /   \                      #
-#   |  ,----'|  |_)  |      /  ^  \  \   \/   / |  |  |  | |   \|  |    |  |  |  |    |   (----`   /  ^  \                     #
-#   |  |     |      /      /  /_\  \  \_    _/  |  |  |  | |  . `  |    |  |  |  |     \   \      /  /_\  \                    #
-#   |  `----.|  |\  \----./  _____  \   |  |    |  `--'  | |  |\   |    |  `--'  | .----)   |    /  _____  \                   #
-#    \______|| _| `._____/__/     \__\  |__|     \______/  |__| \__|     \______/  |_______/    /__/     \__\                  #
+#                                                                                                                              #
+#      ██████╗██████╗  █████╗ ██╗   ██╗ ██████╗ ███╗   ██╗    ██╗   ██╗███████╗ █████╗                                        #
+#     ██╔════╝██╔══██╗██╔══██╗╚██╗ ██╔╝██╔═══██╗████╗  ██║    ██║   ██║██╔════╝██╔══██╗                                       #
+#     ██║     ██████╔╝███████║ ╚████╔╝ ██║   ██║██╔██╗ ██║    ██║   ██║███████╗███████║                                       #
+#     ██║     ██╔══██╗██╔══██║  ╚██╔╝  ██║   ██║██║╚██╗██║    ██║   ██║╚════██║██╔══██║                                       #
+#     ╚██████╗██║  ██║██║  ██║   ██║   ╚██████╔╝██║ ╚████║    ╚██████╔╝███████║██║  ██║                                       #
+#      ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═══╝     ╚═════╝ ╚══════╝╚═╝  ╚═╝                                       #
 #                                                                                                                              #
 ################################################################################################################################
-
-<#
-.SYNOPSIS
     Module for handling user profile migration during Workspace One to Azure/Intune migration.
 .DESCRIPTION
     The ProfileTransfer module provides functions to transfer user profiles between management
@@ -1197,3 +1195,7 @@ Initialize-ProfileTransfer
 
 # Export the module members
 Export-ModuleMember -Function Get-UserProfileSID, Get-UserProfilePath, Transfer-UserProfile, Copy-UserRegistryHive, Restore-UserProfile, Set-ProfileFolderAcl, Transfer-RegistryHiveOwnership, Test-OwnershipTransfer, Complete-ProfileOwnershipTransfer 
+
+
+
+

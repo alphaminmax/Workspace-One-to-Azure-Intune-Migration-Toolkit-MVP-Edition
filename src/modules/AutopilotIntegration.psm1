@@ -1,23 +1,21 @@
 ################################################################################################################################
-# Written by Jared Griego | Crayon | 4.17.2025 | Rev 1.0 |jared.griego@crayon.com                                          #
+# Written by Jared Griego | Crayon | 4.16.2025 | Rev 1.0 | jared.griego@crayon.com                                              #
 #                                                                                                                              #
-# Azure PowerShell Script to allow migration from Workspace One to Azure Intune via Auto-enrollment                            #
+# Module for registering devices with Microsoft Autopilot during migration from Workspace ON...                            #
 # PowerShell 5.1 x32/x64                                                                                                       #
 #                                                                                                                              #
 ################################################################################################################################
 
 ################################################################################################################################
-#     ______ .______          ___   ____    ____  ______   .__   __.     __    __       _______.     ___                       #
-#    /      ||   _  \        /   \  \   \  /   / /  __  \  |  \ |  |    |  |  |  |     /       |    /   \                      #
-#   |  ,----'|  |_)  |      /  ^  \  \   \/   / |  |  |  | |   \|  |    |  |  |  |    |   (----`   /  ^  \                     #
-#   |  |     |      /      /  /_\  \  \_    _/  |  |  |  | |  . `  |    |  |  |  |     \   \      /  /_\  \                    #
-#   |  `----.|  |\  \----./  _____  \   |  |    |  `--'  | |  |\   |    |  `--'  | .----)   |    /  _____  \                   #
-#    \______|| _| `._____/__/     \__\  |__|     \______/  |__| \__|     \______/  |_______/    /__/     \__\                  #
+#                                                                                                                              #
+#      ██████╗██████╗  █████╗ ██╗   ██╗ ██████╗ ███╗   ██╗    ██╗   ██╗███████╗ █████╗                                        #
+#     ██╔════╝██╔══██╗██╔══██╗╚██╗ ██╔╝██╔═══██╗████╗  ██║    ██║   ██║██╔════╝██╔══██╗                                       #
+#     ██║     ██████╔╝███████║ ╚████╔╝ ██║   ██║██╔██╗ ██║    ██║   ██║███████╗███████║                                       #
+#     ██║     ██╔══██╗██╔══██║  ╚██╔╝  ██║   ██║██║╚██╗██║    ██║   ██║╚════██║██╔══██║                                       #
+#     ╚██████╗██║  ██║██║  ██║   ██║   ╚██████╔╝██║ ╚████║    ╚██████╔╝███████║██║  ██║                                       #
+#      ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═══╝     ╚═════╝ ╚══════╝╚═╝  ╚═╝                                       #
 #                                                                                                                              #
 ################################################################################################################################
-
-<#
-.SYNOPSIS
     Module for registering devices with Microsoft Autopilot during migration from Workspace ONE to Azure/Intune.
 .DESCRIPTION
     The AutopilotIntegration module provides functions to register devices with Microsoft Autopilot
@@ -678,3 +676,7 @@ Initialize-AutopilotIntegration
 
 # Export module members
 Export-ModuleMember -Function Register-DeviceInAutopilot, Get-AutopilotRegistrationStatus, Test-MigrationStatus, Get-DeviceAutopilotInfo, Initialize-AutopilotIntegration 
+
+
+
+

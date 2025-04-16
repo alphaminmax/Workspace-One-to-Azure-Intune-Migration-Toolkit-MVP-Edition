@@ -1,23 +1,21 @@
 ################################################################################################################################
-# Written by Jared Griego | Crayon | 4.15.2025 | Rev 1.0 |jared.griego@crayon.com                                          #
+# Written by Jared Griego | Crayon | 4.16.2025 | Rev 1.0 | jared.griego@crayon.com                                              #
 #                                                                                                                              #
-# Azure PowerShell Script to allow migration from Workspace One to Azure Intune via Auto-enrollment                            #
+# PowerShell module providing Write-LogMessage function for Workspace ONE to Azure/Intune mi...                            #
 # PowerShell 5.1 x32/x64                                                                                                       #
 #                                                                                                                              #
 ################################################################################################################################
 
 ################################################################################################################################
-#     ______ .______          ___   ____    ____  ______   .__   __.     __    __       _______.     ___                       #
-#    /      ||   _  \        /   \  \   \  /   / /  __  \  |  \ |  |    |  |  |  |     /       |    /   \                      #
-#   |  ,----'|  |_)  |      /  ^  \  \   \/   / |  |  |  | |   \|  |    |  |  |  |    |   (----`   /  ^  \                     #
-#   |  |     |      /      /  /_\  \  \_    _/  |  |  |  | |  . `  |    |  |  |  |     \   \      /  /_\  \                    #
-#   |  `----.|  |\  \----./  _____  \   |  |    |  `--'  | |  |\   |    |  `--'  | .----)   |    /  _____  \                   #
-#    \______|| _| `._____/__/     \__\  |__|     \______/  |__| \__|     \______/  |_______/    /__/     \__\                  #
+#                                                                                                                              #
+#      ██████╗██████╗  █████╗ ██╗   ██╗ ██████╗ ███╗   ██╗    ██╗   ██╗███████╗ █████╗                                        #
+#     ██╔════╝██╔══██╗██╔══██╗╚██╗ ██╔╝██╔═══██╗████╗  ██║    ██║   ██║██╔════╝██╔══██╗                                       #
+#     ██║     ██████╔╝███████║ ╚████╔╝ ██║   ██║██╔██╗ ██║    ██║   ██║███████╗███████║                                       #
+#     ██║     ██╔══██╗██╔══██║  ╚██╔╝  ██║   ██║██║╚██╗██║    ██║   ██║╚════██║██╔══██║                                       #
+#     ╚██████╗██║  ██║██║  ██║   ██║   ╚██████╔╝██║ ╚████║    ╚██████╔╝███████║██║  ██║                                       #
+#      ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═══╝     ╚═════╝ ╚══════╝╚═╝  ╚═╝                                       #
 #                                                                                                                              #
 ################################################################################################################################
-
-# Module variables
-$script:ElevationTaskName = "WS1MigrationElevatedTask"
 $script:TaskPath = "\WS1Migration\"
 $script:ElevatedOperationTimeout = 600 # seconds
 $script:TempScriptPath = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), "WS1Migration")
@@ -537,3 +535,7 @@ Initialize-PrivilegeManagement
 
 # Export the module members
 Export-ModuleMember -Function Invoke-ElevatedOperation, New-TemporaryAdminAccount, Remove-TemporaryAdminAccount, Invoke-ComObjectElevation 
+
+
+
+

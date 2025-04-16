@@ -19,7 +19,10 @@ param (
     [switch]$Force,
     
     [Parameter(Mandatory = $false)]
-    [switch]$WhatIf
+    [switch]$WhatIf,
+    
+    [Parameter(Mandatory = $false)]
+    [switch]$CleanupDuplicates
 )
 
 function Get-ScriptDescription {
@@ -95,7 +98,10 @@ function Add-HeaderToFile {
         [switch]$Force,
         
         [Parameter(Mandatory = $false)]
-        [switch]$WhatIf
+        [switch]$WhatIf,
+        
+        [Parameter(Mandatory = $false)]
+        [switch]$CleanupDuplicates
     )
     
     $fileName = Split-Path -Path $FilePath -Leaf
@@ -103,8 +109,12 @@ function Add-HeaderToFile {
     
     # Check if the file already has a Crayon header
     if ($fileContent -match "Written by .* \| Crayon \|" -and -not $Force) {
-        Write-Host "Skipping $fileName - header already exists (use -Force to replace)" -ForegroundColor Yellow
-        return $false
+        if ($CleanupDuplicates) {
+            Write-Host "Cleaning up duplicate headers in $fileName" -ForegroundColor Cyan
+        } else {
+            Write-Host "Skipping $fileName - header already exists (use -Force to replace)" -ForegroundColor Yellow
+            return $false
+        }
     }
     
     # Create the header
@@ -120,12 +130,13 @@ function Add-HeaderToFile {
 ################################################################################################################################
 
 ################################################################################################################################
-#     ______ .______          ___   ____    ____  ______   .__   __.     __    __       _______.     ___                       #
-#    /      ||   _  \        /   \  \   \  /   / /  __  \  |  \ |  |    |  |  |  |     /       |    /   \                      #
-#   |  ,----'|  |_)  |      /  ^  \  \   \/   / |  |  |  | |   \|  |    |  |  |  |    |   (----`   /  ^  \                     #
-#   |  |     |      /      /  /_\  \  \_    _/  |  |  |  | |  . `  |    |  |  |  |     \   \      /  /_\  \                    #
-#   |  `----.|  |\  \----./  _____  \   |  |    |  `--'  | |  |\   |    |  `--'  | .----)   |    /  _____  \                   #
-#    \______|| _| `._____/__/     \__\  |__|     \______/  |__| \__|     \______/  |_______/    /__/     \__\                  #
+#                                                                                                                              #
+#      ██████╗██████╗  █████╗ ██╗   ██╗ ██████╗ ███╗   ██╗    ██╗   ██╗███████╗ █████╗                                        #
+#     ██╔════╝██╔══██╗██╔══██╗╚██╗ ██╔╝██╔═══██╗████╗  ██║    ██║   ██║██╔════╝██╔══██╗                                       #
+#     ██║     ██████╔╝███████║ ╚████╔╝ ██║   ██║██╔██╗ ██║    ██║   ██║███████╗███████║                                       #
+#     ██║     ██╔══██╗██╔══██║  ╚██╔╝  ██║   ██║██║╚██╗██║    ██║   ██║╚════██║██╔══██║                                       #
+#     ╚██████╗██║  ██║██║  ██║   ██║   ╚██████╔╝██║ ╚████║    ╚██████╔╝███████║██║  ██║                                       #
+#      ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═══╝     ╚═════╝ ╚══════╝╚═╝  ╚═╝                                       #
 #                                                                                                                              #
 ################################################################################################################################
 
@@ -135,6 +146,56 @@ function Add-HeaderToFile {
     # Check if file starts with shebang (#!) or Requires for PowerShell
     $hasShebang = $fileContent -match "^#!"
     $hasRequires = $fileContent -match "^#Requires"
+    
+    # If we need to clean up duplicates, let's strip out all existing Crayon headers
+    if ($CleanupDuplicates -or $Force) {
+        # Get content as lines
+        $lines = $fileContent -split "`n"
+        $cleanedLines = New-Object System.Collections.ArrayList
+        $inHeader = $false
+        $skipLines = 0
+        
+        # Initialize variables to detect and remove duplicate headers
+        $headerStartPattern = "################################################################################################################################"
+        $headerMidPattern = "Written by .* \| Crayon \|"
+        $logoPattern = "______ .______"
+        
+        for ($i = 0; $i -lt $lines.Count; $i++) {
+            $line = $lines[$i]
+            
+            # Check for the start of a Crayon header block
+            if ($line -match $headerStartPattern -and $i+1 -lt $lines.Count -and $lines[$i+1] -match $headerMidPattern) {
+                $inHeader = $true
+                $skipLines = 16 # Skip the typical header block (could adjust if needed)
+                continue
+            }
+            
+            # Check for ASCII logo pattern and skip it
+            if ($line -match $logoPattern -and $inHeader) {
+                $skipLines = 8 # Skip the logo lines
+                continue
+            }
+            
+            # Skip lines if we're currently in a header
+            if ($skipLines -gt 0) {
+                $skipLines--
+                continue
+            }
+            
+            # If we were in a header but now we're past it, reset the flag
+            if ($skipLines -eq 0) {
+                $inHeader = $false
+            }
+            
+            # Add lines that are not part of a header
+            if (-not $inHeader) {
+                [void]$cleanedLines.Add($line)
+            }
+        }
+        
+        # Convert back to string
+        $fileContent = $cleanedLines -join "`n"
+    }
     
     $newContent = ""
     if ($hasShebang -or $hasRequires) {
@@ -169,7 +230,11 @@ function Add-HeaderToFile {
     else {
         try {
             Set-Content -Path $FilePath -Value $newContent -Encoding UTF8
-            Write-Host "Updated header in: $fileName" -ForegroundColor Green
+            if ($CleanupDuplicates) {
+                Write-Host "Cleaned up headers in: $fileName" -ForegroundColor Green
+            } else {
+                Write-Host "Updated header in: $fileName" -ForegroundColor Green
+            }
             return $true
         }
         catch {
@@ -209,7 +274,7 @@ foreach ($file in $scriptFiles) {
     $paddedDescription = $description.PadRight(90)
     
     # Add header to the file
-    $result = Add-HeaderToFile -FilePath $file.FullName -Description $paddedDescription -Force:$Force -WhatIf:$WhatIf
+    $result = Add-HeaderToFile -FilePath $file.FullName -Description $paddedDescription -Force:$Force -WhatIf:$WhatIf -CleanupDuplicates:$CleanupDuplicates
     if ($result) {
         $updated++
     }
