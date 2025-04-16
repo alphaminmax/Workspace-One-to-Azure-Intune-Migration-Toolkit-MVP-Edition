@@ -167,7 +167,7 @@ function Test-ModuleAvailable {
         return $true
     }
     catch {
-        Write-TestLog -Message "Failed to import module $ModuleName: $_" -Level 'Error'
+        Write-TestLog -Message "Failed to import module ${ModuleName}: ${_}" -Level 'Error'
         return $false
     }
 }
@@ -239,7 +239,7 @@ function Register-TestCase {
         $duration = ($endTime - $startTime).TotalSeconds
         
         Write-TestLog -Message "TEST FAILED: $Name (${duration}s)" -Level 'Error'
-        Write-TestLog -Message "Error: $_" -Level 'Error'
+        Write-TestLog -Message "Error: $($_)" -Level 'Error'
         $script:TestsFailed++
         
         $script:TestResults += [PSCustomObject]@{
@@ -698,7 +698,7 @@ function Test-EndToEndWorkflow {
         return $true
     }
     catch {
-        throw "End-to-end workflow test failed: $_"
+        throw "End-to-end workflow test failed: $($_)"
     }
 }
 
